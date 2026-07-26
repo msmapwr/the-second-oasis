@@ -125,12 +125,23 @@
 
 ## 快速开始
 
+### 一键脚本（推荐）
+
+| 脚本 | 平台 | 用途 |
+|------|------|------|
+| `scripts/deploy.bat` | Windows | 自动检查环境 → 装依赖 → 类型检查 → 构建 |
+| `scripts/deploy.sh` | macOS / Linux / Git Bash | 同上 |
+| `scripts/start.bat` | Windows | 交互式菜单：开发 / 联机 / 预览 / 测试 |
+| `scripts/start.sh` | macOS / Linux / Git Bash | 同上 |
+
+> **Windows 用户**：双击 `scripts\deploy.bat` 即可完成部署，双击 `scripts\start.bat` 即可启动。
+
 ### 环境要求
 
 - **Node.js** >= 18
 - **包管理器**：npm（已锁定）
 
-### 安装与运行
+### 命令行安装与运行
 
 ```bash
 # 克隆项目
