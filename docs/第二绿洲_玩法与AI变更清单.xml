@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ChangeDocument>
+  <!-- 元信息 -->
+  <Metadata>
+    <Project>第二绿洲 / The Second Oasis</Project>
+    <Version>1.2-draft</Version>
+    <Date>2026-07-26</Date>
+    <Author>游戏设计师 + WorkBuddy</Author>
+    <Purpose>
+      记录从计划书 v1.1 到 v1.2 变体包的所有底层玩法规则与 AI 适配改动。
+      每个变更项包含：名称、类型、状态、优先级、描述、设计理由、影响范围、依赖、验收标准与调参建议。
+    </Purpose>
+  </Metadata>
+
+  <!-- 设计支柱：所有变更必须服从的顶层体验目标 -->
+  <DesignPillars>
+    <Pillar id="p1">玩家选择有意义：每回合在“稳健、激进、不开发、复仇”之间做真实权衡。</Pillar>
+    <Pillar id="p2">领先有代价：领先者不能龟缩，落后者有追赶窗口。</Pillar>
+    <Pillar id="p3">交互有闭环：抢夺、崩坏、复仇形成可预测的情感曲线。</Pillar>
+    <Pillar id="p4">AI 可解释：AI 的决策逻辑必须与人类玩家的理解一致，能读取其“记仇”与“性格”理由。</Pillar>
+    <Pillar id="p5">零和守恒：所有新机制都必须是公共池或玩家之间的转移，不凭空创造资源。</Pillar>
+  </DesignPillars>
+
+  <!-- 变更清单，按功能模块分类 -->
+  <Categories>
+    <!-- ============================================================ -->
+    <Category id="gameplay-rules" name="玩法规则变更">
+      <Change id="G-001">
+        <Name>公敌税（Leader Tax）</Name>
+        <Type>新增机制</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          每轮（所有存活且已发射玩家行动一次）结束时，若存在唯一私有领土最高的玩家，
+          该玩家向公共池缴纳一笔税额。税额从私有领土扣除，加到公共池，严格零和。
+          多人并列最高时免税，避免随机 tie-break 被感知为不公平。
+        </Description>
+        <Rationale>
+          防止领先者切换“稳健”或“不开发”龟缩到终局；给落后者一个被动追赶窗口；
+          让“领先”本身成为需要持续承担的成本。
+        </Rationale>
+        <ImpactScope>
+          GameState 的回合推进逻辑、TurnHistory 记录、UI 状态条刷新、终局判定。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>TurnHistory 结构需要新增 LeaderTax 字段</Dependency>
+          <Dependency>UI 需要在每轮结束时展示税扣动画</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 唯一领先者每轮结束扣税；并列时不扣。
+          2. 税额为 0 或领先者私有不足时不反向扣成负数。
+          3. 扣税后 Σ(私有) + 公共 = 100 守恒。
+          4. 与崩坏、抢夺在同一轮结束时不重复结算顺序冲突。
+        </AcceptanceCriteria>
+        <Tuning>
+          <Parameter name="EnableLeaderTax" type="boolean" current="false" proposed="true" />
+          <Parameter name="LeaderTaxBase" type="int" current="0" proposed="1" min="0" max="3" unit="private-territory" />
+          <Parameter name="LeaderTaxScale" type="boolean" current="false" proposed="false" note="可选：领先幅度每 10 点额外 +1 税" />
+        </Tuning>
+      </Change>
+
+      <Change id="G-002">
+        <Name>顺位轮换（Rotating Start）</Name>
+        <Type>新增机制</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          每轮的起始玩家按轮次轮换：FirstPlayer = RoundIndex % PlayerCount。
+          发射阶段与重新发射仍按自然座位顺序处理，避免打乱“谁还没发射”的追踪。
+        </Description>
+        <Rationale>
+          平滑永久 0 号先手带来的约 6pp 胜率优势；让玩家体验到“这轮我兜底、下轮我先手”的轮转张力。
+        </Rationale>
+        <ImpactScope>
+          GameState 的轮次计数、AdvanceToNextPlayer 与 Launch 阶段推进逻辑、AI 的终局紧迫性评估。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>TurnResult 需要新增 RoundIndex 与 FirstPlayerIndex 字段</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 每轮首个行动者严格按 RoundIndex 取模轮换。
+          2. 发射阶段所有玩家未发射完成前仍按原顺序尝试。
+          3. 终局平手加赛不受轮换影响，仍由平局者进行。
+        </AcceptanceCriteria>
+        <Tuning>
+          <Parameter name="EnableRotatingStart" type="boolean" current="false" proposed="true" />
+        </Tuning>
+      </Change>
+
+      <Change id="G-003">
+        <Name>枯竭冲刺（Scarcity Sprint）</Name>
+        <Type>新增机制</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          当公共池降至阈值以下时，进入“枯竭冲刺”阶段：所有正向 RawGain 额外获得 SprintBonus。
+          负向 RawGain（激进倒扣）不享受冲刺奖励，避免倒扣被进一步放大。
+          不开发模式 RawGain = 0，也不获得奖励。
+        </Description>
+        <Rationale>
+          把终局从“慢慢磨”或“一次崩坏暴毙”变成可预期的最后冲刺；
+          连击对子在冲刺期收益更高，鼓励玩家在终局前保留链式机会。
+        </Rationale>
+        <ImpactScope>
+          PlayTurn 的 RawGain 计算、Occupation 输入、UI 终局氛围提示、AI 的激进评分。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>GameState 需要新增 _IsInSprintPhase 或按公共池实时判断</Dependency>
+          <Dependency>TurnResult 需要记录 SprintBonus 字段</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 公共池 ≤ SprintThreshold 时，仅正向 RawGain 增加 SprintBonus。
+          2. 负向倒扣、不开发、开发过度均不触发。
+          3. 冲刺奖励仍受开发链倍率影响（RawGain' = (RawGain + Bonus) × Multiplier）。
+          4. 进入冲刺时在 UI 和日志中有明确提示。
+        </AcceptanceCriteria>
+        <Tuning>
+          <Parameter name="EnableScarcitySprint" type="boolean" current="false" proposed="true" />
+          <Parameter name="SprintThreshold" type="int" current="0" proposed="30" min="20" max="40" unit="public-territory" />
+          <Parameter name="SprintBonus" type="int" current="0" proposed="2" min="1" max="3" unit="raw-gain" />
+        </Tuning>
+      </Change>
+
+      <Change id="G-004">
+        <Name>复仇突袭（Revenge Raid）</Name>
+        <Type>新增机制</Type>
+        <Status>planned</Status>
+        <Priority>B</Priority>
+        <Description>
+          被抢夺的低者，或在一次崩坏中损失最高的玩家，获得一枚复仇令牌（RevengeToken，最多 1 枚）。
+          在后续任一回合，玩家可以消耗该令牌发动“复仇突袭”：选择一名目标，掷 1 颗骰子，
+          若结果 ≥ RevengeSuccessThreshold，则从目标私有中夺取 (Roll - 2) 的领土；
+          否则自己损失 RevengeFailureCost 私有到公共池。
+          复仇突袭占用一回合，不能与普通掷骰模式同时进行。
+        </Description>
+        <Rationale>
+          扩展只有一次抢夺的玩家间交互；为 AI 的 Vengefulness 维度提供真实出口；
+          形成“被搞→记仇→反击”的完整情感闭环。
+        </Rationale>
+        <ImpactScope>
+          DiceMode 枚举、PlayerSnapshot / InternalPlayer 状态、Robbery 与 Collapse 的输出、
+          GameState 的回合分支、TurnResult 结构、AI 决策器。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>新增 DiceMode.Revenge</Dependency>
+          <Dependency>Memory 系统需要记录 RevengeToken 与受害者</Dependency>
+          <Dependency>UI 需要展示令牌图标与选择目标面板</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 被抢夺的低者 / 崩坏最高受害者获得 1 枚令牌，重复事件不叠加。
+          2. 只有持有令牌者可选择 Revenge，消耗后令牌清零。
+          3. 目标私有不足时只扣除实际可用部分，夺取量不能超过目标现有私有。
+          4. 失败时按 RevengeFailureCost 从发动者私有扣除到公共池，不扣至负数。
+          5. 与开发链、枯竭冲刺、公敌税独立结算，互不干扰。
+        </AcceptanceCriteria>
+        <Tuning>
+          <Parameter name="EnableRevengeRaid" type="boolean" current="false" proposed="false" note="建议作为第二批扩展" />
+          <Parameter name="RevengeSuccessThreshold" type="int" current="0" proposed="4" min="3" max="5" unit="die-face" />
+          <Parameter name="RevengeFailureCost" type="int" current="0" proposed="1" min="0" max="2" unit="private-territory" />
+          <Parameter name="RevengeStealFormula" type="enum" current="" proposed="Roll - 2" options="Roll - 2, Roll, Roll / 2" />
+        </Tuning>
+      </Change>
+    </Category>
+
+    <!-- ============================================================ -->
+    <Category id="ai-behavior" name="AI 行为逻辑调整">
+      <Change id="AI-001">
+        <Name>AI 评估新增 Revenge 模式</Name>
+        <Type>新增决策模式</Type>
+        <Status>planned</Status>
+        <Priority>B</Priority>
+        <Description>
+          在 DecisionMaker 的 ALL_MODES 中增加 DiceMode.Revenge，并在 Evaluator 中建立其评分逻辑：
+          考虑目标私有、成功概率、失败成本、自身令牌持有、Vengefulness 和 Grudge 分数。
+        </Description>
+        <Rationale>
+          让 AI 能够主动使用复仇突袭，而不是把 Vengefulness 仅作为评分调味剂。
+        </Rationale>
+        <ImpactScope>
+          src/AI/DecisionMaker.ts、src/AI/Evaluator.ts、src/AI/Simulator.ts。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-004 复仇突袭机制</Dependency>
+          <Dependency>AI-005 复仇令牌追踪</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. AI 在有复仇令牌时才会把 Revenge 列入候选。
+          2. 高 Vengefulness 且目标领先时，Revenge 评分显著提升。
+          3. 当 AI 自身私有很低或目标私有不足时，Revenge 评分被抑制。
+        </AcceptanceCriteria>
+        <Tuning>
+          <Parameter name="RevengeGrudgeMultiplier" type="float" current="0" proposed="1.5" min="0.5" max="3.0" />
+          <Parameter name="RevengeOwnRiskPenalty" type="float" current="0" proposed="2.0" min="0" max="5.0" />
+        </Tuning>
+      </Change>
+
+      <Change id="AI-002">
+        <Name>AI 感知公敌税</Name>
+        <Type>评分调整</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          Evaluator 在计算“成为唯一领先者”的价值时，引入 LeaderTax 的期望负收益。
+          当领先幅度很小时，避免 AI 为了抢第一而承担未来每轮税的成本。
+        </Description>
+        <Rationale>
+          让 AI 在“领先 1 点”和“落后 1 点但免税”之间做出更真实的权衡。
+        </Rationale>
+        <ImpactScope>
+          src/AI/Evaluator.ts 的 ScoreOutcome 函数。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-001 公敌税机制</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 在公敌税开启时，AI 评分包含预计剩余轮次的税额折现。
+          2. 税额评估对 Conservative 性格更重，对 Gambler 性格更轻。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="AI-003">
+        <Name>AI 感知枯竭冲刺</Name>
+        <Type>评分调整</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          当公共池低于 SprintThreshold 时，Evaluator 中 Aggressive 与 Revenge 的期望收益被放大，
+          None 与 Steady 的保守价值被压低，除非 AI 已经确定领先并只需要苟活。
+        </Description>
+        <Rationale>
+          冲刺阶段收益更高，AI 需要转向高风险高回报；但领先者仍可保留稳健的“保第一”路径。
+        </Rationale>
+        <ImpactScope>
+          src/AI/Evaluator.ts 的模式评分函数。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-003 枯竭冲刺机制</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 冲刺阶段 Aggressive 的 HeuristicScore 显著提升（约 +10%～+20%）。
+          2. 领先者如果差距足够大，仍可能选择 Steady 或 None 保局。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="AI-004">
+        <Name>AI 感知顺位轮换</Name>
+        <Type>评分调整</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          AI 在评估终局紧迫性时，把“本轮行动顺序”纳入考量：
+          如果自己是本轮最后一位且公共池接近归零，保守策略更安全；
+          如果自己是下一轮先手，激进策略更有机会抢尾刀。
+        </Description>
+        <Rationale>
+          让 AI 能利用轮换带来的“先/后手”差异，增强其与人类玩家的一致性。
+        </Rationale>
+        <ImpactScope>
+          src/AI/Evaluator.ts、src/AI/Simulator.ts 的终局阶段评分。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-002 顺位轮换机制</Dependency>
+          <Dependency>Data-002 TurnHistory 新增轮次字段</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 在终局临近（公共 ≤ 20）时，AI 会根据当前座次调整激进程度。
+          2. 旋转起始未启用时，该评分项不生效。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="AI-005">
+        <Name>复仇令牌与受害者追踪</Name>
+        <Type>状态追踪</Type>
+        <Status>planned</Status>
+        <Priority>B</Priority>
+        <Description>
+          AIDirector 和 Memory 系统扩展为追踪每个玩家是否持有 RevengeToken，
+          并在 robbery / collapse 事件后更新 Grudge 分数与令牌状态。
+        </Description>
+        <Rationale>
+          AI 需要准确知道谁有复仇能力，才能在选择激进时预判被反击的风险。
+        </Rationale>
+        <ImpactScope>
+          src/AI/Memory.ts、src/AI/AIDirector.ts、src/AI/TransparentLog.ts。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-004 复仇突袭机制</Dependency>
+          <Dependency>Data-001 玩家状态新增 RevengeToken</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. AIDirector 能在每个 AI 决策时提供准确的 RevengeToken 状态。
+          2. Grudge 分数对抢夺者 / 崩坏发起者正确累加。
+          3. 透明日志可显示 AI 因“记仇”而选择复仇的理由。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="AI-006">
+        <Name>AI 对开发链的保守/赌徒倾向差异化</Name>
+        <Type>评分微调</Type>
+        <Status>planned</Status>
+        <Priority>B</Priority>
+        <Description>
+          在当前开发链计数为 2（再出对子就过度开发）时，
+          Conservative 性格应显著降低激进评分，而 Gambler 性格仍可保留一定高风险偏好。
+        </Description>
+        <Rationale>
+          让不同性格 AI 在“见好就收”和“再博一把”之间呈现差异，强化 Personality 的可读性。
+        </Rationale>
+        <ImpactScope>
+          src/AI/Evaluator.ts 的 OverloadChance 惩罚项。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>现有 DevChain 状态</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. Conservative 在链=2 时几乎不选激进，除非收益极高。
+          2. Gambler 在链=2 时仍可能激进，但概率随私有增加而下降。
+        </AcceptanceCriteria>
+      </Change>
+    </Category>
+
+    <!-- ============================================================ -->
+    <Category id="data-interface" name="数据接口修改">
+      <Change id="Data-001">
+        <Name>玩家状态扩展 RevengeToken</Name>
+        <Type>数据模型扩展</Type>
+        <Status>planned</Status>
+        <Priority>B</Priority>
+        <Description>
+          在 PlayerSnapshot 与 InternalPlayer 中新增 RevengeToken 字段（boolean 或 int）。
+          网络对局中必须同步，防止客户端与服务器状态不一致。
+        </Description>
+        <Rationale>
+          复仇突袭需要持久化的每玩家状态。
+        </Rationale>
+        <ImpactScope>
+          src/Types/Player.ts、src/Core/GameState.ts、src/Net/Messages.ts、NetworkGameStore。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-004 复仇突袭机制</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. RevengeToken 在快照、网络消息、AI 上下文中一致。
+          2. 重新发射后令牌不清除（除非明确设计如此）。
+          3. 开发过度造成的荒地状态不影响令牌持有。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="Data-002">
+        <Name>回合历史扩展轮次与阶段信息</Name>
+        <Type>数据模型扩展</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          TurnResult 新增 RoundIndex、FirstPlayerIndex、LeaderTax、SprintBonus 字段。
+          用于 UI 回放、AI 座次评估、审计日志。
+        </Description>
+        <Rationale>
+          新机制需要在日志中可追踪，且 AI 与回放依赖这些信息。
+        </Rationale>
+        <ImpactScope>
+          src/Types/Turn.ts、src/Core/GameState.ts、src/UI/Components/BattleLog.ts。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-001 公敌税</Dependency>
+          <Dependency>G-002 顺位轮换</Dependency>
+          <Dependency>G-003 枯竭冲刺</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 每回合记录准确的轮次与首玩家索引。
+          2. 公敌税与冲刺奖励作为独立字段存储，不混淆到 OccupationDelta。
+          3. 回放时 UI 能正确展示这些事件。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="Data-003">
+        <Name>新增 DiceMode.Revenge 枚举</Name>
+        <Type>枚举扩展</Type>
+        <Status>planned</Status>
+        <Priority>B</Priority>
+        <Description>
+          在 DiceMode 枚举中增加 Revenge，并在 DiceRoller 中实现单骰复仇突袭掷骰。
+        </Description>
+        <Rationale>
+          复仇突袭是占用回合的独立模式，必须进入模式选择体系。
+        </Rationale>
+        <ImpactScope>
+          src/Types/Dice.ts、src/Core/DiceRoller.ts、所有 switch DiceMode 的分支。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-004 复仇突袭机制</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. Revenge 模式掷骰消耗 1 颗骰子。
+          2. 不开发模式（None）不消耗骰子、不触发复仇突袭。
+          3. 所有 mode 分支的 exhaustive type check 通过。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="Data-004">
+        <Name>GameConfig 扩展机制开关与参数</Name>
+        <Type>配置扩展</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          GameConfig 新增 EnableLeaderTax、EnableRotatingStart、EnableScarcitySprint、EnableRevengeRaid
+          以及对应参数。Constants.ts 中新增默认值，CreateDefaultConfig 保持向后兼容（默认关闭或按需开启）。
+        </Description>
+        <Rationale>
+          所有新机制必须可开关，方便 A/B 测试、回滚到 v1.1、以及 AI 难度变体。
+        </Rationale>
+        <ImpactScope>
+          src/Types/GameConfig.ts、src/Core/Constants.ts、src/Types/GameConfig.ts 的工厂函数。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>G-001 至 G-004</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 旧配置对象在扩展后仍能通过类型检查。
+          2. 所有开关默认 false 或按变体包推荐组合设置。
+          3. MonteCarloSimulation 能读取这些开关并跑对比实验。
+        </AcceptanceCriteria>
+      </Change>
+    </Category>
+
+    <!-- ============================================================ -->
+    <Category id="config-params" name="参数配置更新">
+      <Change id="Cfg-001">
+        <Name>标准变体包默认参数</Name>
+        <Type>参数默认值</Type>
+        <Status>planned</Status>
+        <Priority>A</Priority>
+        <Description>
+          定义一套“v1.2 标准变体”默认参数：开启公敌税、顺位轮换、枯竭冲刺，关闭复仇突袭。
+        </Description>
+        <Rationale>
+          给玩家和开发者一个推荐起点，降低试玩调参成本。
+        </Rationale>
+        <ImpactScope>
+          src/Types/GameConfig.ts、CreateDefaultConfig 或新增 CreateVariantConfig 工厂。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>Data-004 GameConfig 扩展</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 提供 CreateDefaultConfig()（v1.1 兼容）与 CreateVariantConfig()（v1.2 标准变体）。
+          2. 两套配置在蒙特卡洛中分别跑 1000 局对比。
+        </AcceptanceCriteria>
+      </Change>
+
+      <Change id="Cfg-002">
+        <Name>激进模式惩罚阈值变体</Name>
+        <Type>参数调整</Type>
+        <Status>optional</Status>
+        <Priority>C</Priority>
+        <Description>
+          可选将激进倒扣阈值从 Sum ≤ 6 调整为 Sum ≤ 5，使激进期望从 3.11 提升到约 4.78。
+          仅作为激进偏弱的应急方案，不建议与标准变体包同时使用。
+        </Description>
+        <Rationale>
+          如果试玩发现激进模式仍然太弱，可提高其期望收益；但会显著改变风险/收益曲线。
+        </Rationale>
+        <ImpactScope>
+          src/Core/DiceRoller.ts、Constants.ts。
+        </ImpactScope>
+        <Dependencies>
+          <Dependency>无（独立参数）</Dependency>
+        </Dependencies>
+        <AcceptanceCriteria>
+          1. 该参数为可选实验开关，默认不改变 v1.1 行为。
+          2. 修改后重新跑全部 DiceRoller 测试与蒙特卡洛。
+        </AcceptanceCriteria>
+      </Change>
+    </Category>
+  </Categories>
+
+  <!-- 验证与测试 -->
+  <Validation>
+    <MonteCarlo>
+      <Goal>确认变体包不破坏平衡，且解决先手优势与龟缩问题。</Goal>
+      <Metrics>
+        <Metric>平均回合数</Metric>
+        <Metric>先手/后手胜率差（目标 ≤ 3pp）</Metric>
+        <Metric>开发链/抢夺/崩坏/复仇突袭触发率</Metric>
+        <Metric>终局私有总和守恒（≈ 100）</Metric>
+      </Metrics>
+      <Scenarios>
+        <Scenario name="v1.1-baseline">旧配置，全员激进，1000 局 × 2/3/4 人。</Scenario>
+        <Scenario name="v1.2-standard">标准变体包，全员激进，1000 局 × 2/3/4 人。</Scenario>
+        <Scenario name="v1.2-mixed">标准变体包，AI 混合性格（30% 保守 / 40% 平衡 / 30% 赌徒），1000 局。</Scenario>
+      </Scenarios>
+    </MonteCarlo>
+    <Tests>
+      <Test>新增 GameState 测试：公敌税、顺位轮换、枯竭冲刺、复仇突袭的边界。</Test>
+      <Test>新增 AI 测试：AI 在开启新机制时不会崩溃，且决策理由可被 TransparentLog 读取。</Test>
+      <Test>回归测试：关闭所有新机制开关后，所有原有 115 个测试仍通过。</Test>
+    </Tests>
+  </Validation>
+
+  <!-- 迁移与兼容性说明 -->
+  <MigrationNotes>
+    <Note>
+      所有新机制均通过 GameConfig 开关控制，关闭开关后逻辑等价于 v1.1，不破坏现有存档或回放格式。
+    </Note>
+    <Note>
+      Revenge Raid 引入新的 UI 交互（选择目标），需要 B/C 优先级界面支持；建议在 AI 适配完成后再接入多人网络同步。
+    </Note>
+    <Note>
+      如果网络对局采用服务器权威结算，新增字段（RevengeToken、RoundIndex、SprintBonus）必须加入协议消息序列，
+      并确保 SeededRandom 调用顺序在复仇突袭与普通掷骰之间一致。
+    </Note>
+  </MigrationNotes>
+</ChangeDocument>

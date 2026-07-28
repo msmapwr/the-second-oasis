@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技能卡罗牌 · 开发者调查问卷</title>
+<style>
+  :root{
+    --bg:#0a1628;
+    --panel:#111d32;
+    --ink:#dce6f0;
+    --muted:#7b8ba3;
+    --line:#1e3050;
+    --brand:#0eccce;
+    --brand-soft:#0a2a36;
+    --accent:#f0c040;
+    --danger:#e05555;
+    --ok:#3cc080;
+    --radius:10px;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+    line-height:1.75;font-size:15px;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:28px 20px 80px}
+  header.hero{
+    background:linear-gradient(135deg,#122e44 0%,#0d1f33 60%,#091420 100%);
+    border:1px solid var(--line);border-radius:var(--radius);padding:32px 30px;
+    position:relative;overflow:hidden;
+  }
+  header.hero::after{
+    content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;
+    background:radial-gradient(circle,rgba(14,204,206,.12),transparent 70%);
+  }
+  header.hero h1{margin:0;font-size:28px;color:#e8f4f8;display:flex;align-items:center;gap:12px}
+  header.hero h1 .icon{font-size:36px}
+  header.hero .sub{margin-top:8px;color:var(--muted);font-size:14px}
+  header.hero .badges{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  header.hero .badge{
+    display:inline-block;background:rgba(14,204,206,.12);color:var(--brand);
+    border:1px solid rgba(14,204,206,.2);padding:4px 12px;border-radius:999px;font-size:12px
+  }
+
+  section.card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px 28px;margin:20px 0;
+  }
+  section.card h2{font-size:18px;color:var(--accent);margin:0 0 6px;display:flex;align-items:center;gap:8px}
+  section.card h2 .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:6px;background:rgba(240,192,64,.15);color:var(--accent);
+    font-size:13px;font-weight:700;flex-shrink:0
+  }
+  section.card .desc{color:var(--muted);font-size:13px;margin-bottom:16px}
+
+  .q{margin:16px 0;padding:14px 16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:8px}
+  .q .q-title{font-weight:600;margin-bottom:8px;color:#e0eaf5}
+  .q .q-title .q-num{color:var(--brand);margin-right:6px}
+  .q .options{display:flex;flex-wrap:wrap;gap:8px}
+  .q .opt{
+    display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:6px;
+    padding:5px 12px;font-size:13px;cursor:pointer;transition:all .15s;user-select:none;
+  }
+  .q .opt:hover{border-color:var(--brand);background:rgba(14,204,206,.08)}
+  .q .opt.picked{border-color:var(--brand);background:rgba(14,204,206,.15);color:var(--brand)}
+  .q .opt .chk{width:14px;height:14px;border:2px solid var(--line);border-radius:3px;display:inline-flex;align-items:center;justify-content:center}
+  .q .opt.picked .chk{border-color:var(--brand);background:var(--brand)}
+  .q .opt.picked .chk::after{content:"✓";color:#000;font-size:10px;font-weight:700}
+  .q .opt.radio .chk{border-radius:50%}
+  .q textarea{
+    width:100%;margin-top:8px;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:6px;
+    color:var(--ink);padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px
+  }
+  .q textarea:focus{outline:none;border-color:var(--brand)}
+
+  .summary-bar{
+    position:sticky;bottom:0;left:0;right:0;background:var(--panel);border-top:2px solid var(--brand);
+    padding:16px 28px;display:flex;justify-content:space-between;align-items:center;
+    margin:0 -20px;z-index:10
+  }
+  .summary-bar .btn{
+    background:var(--brand);color:#000;border:none;border-radius:6px;padding:10px 28px;
+    font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.5px
+  }
+  .summary-bar .btn:hover{opacity:.85}
+  .summary-bar .btn.secondary{background:rgba(255,255,255,.08);color:var(--ink)}
+  .summary-bar .progress{color:var(--muted);font-size:13px}
+
+  .highlight{color:var(--accent);font-weight:600}
+  .note{background:rgba(14,204,206,.08);border-left:3px solid var(--brand);padding:10px 14px;margin:12px 0;font-size:13px;border-radius:0 6px 6px 0}
+  .note.warn{border-left-color:var(--accent);background:rgba(240,192,64,.08)}
+
+  .result-panel{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:var(--panel);border:2px solid var(--brand);border-radius:var(--radius);
+    padding:28px;z-index:100;max-width:650px;width:90%;max-height:80vh;overflow-y:auto;
+    box-shadow:0 8px 48px rgba(0,0,0,.5)}
+  .result-panel.show{display:block}
+  .result-panel h3{color:var(--accent);margin:0 0 12px}
+  .result-panel pre{background:rgba(0,0,0,.3);border-radius:6px;padding:14px;font-size:12px;
+    line-height:1.6;overflow-x:auto;white-space:pre-wrap;font-family:var(--mono)}
+  .result-panel .close-btn{
+    background:var(--brand);color:#000;border:none;border-radius:6px;
+    padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;margin-top:14px
+  }
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99}
+  .overlay.show{display:block}
+
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:40px}
+  hr.soft{border:none;border-top:1px dashed var(--line);margin:16px 0}
+
+  .tag-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .tag-wrap .tag{
+    display:inline-flex;align-items:center;gap:4px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:4px;
+    padding:3px 8px;font-size:12px
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1><span class="icon">🃏</span>技能卡罗牌 · 开发者调查问卷</h1>
+  <div class="sub">为《第二绿洲》新增「技能卡罗牌」系统做需求澄清</div>
+  <div class="badges">
+    <span class="badge">目标模块：src/Core/Card/</span>
+    <span class="badge">影响范围：GameState + Types + UI</span>
+    <span class="badge">关联：计划书 §15 待澄清</span>
+  </div>
+</header>
+
+<section class="card">
+  <h2><span class="num">A</span>总览：卡牌系统的定位</h2>
+  <div class="desc">先确定卡牌系统在游戏中的整体角色——是调味料还是主菜？</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">A1.</span>卡牌系统的核心定位是什么？</div>
+    <div class="options" data-q="A1" data-type="radio">
+      <span class="opt radio" data-val="seasoning"><span class="chk"></span>调味料：轻量辅助，增加策略变数但不改变核心胜负逻辑</span>
+      <span class="opt radio" data-val="equal"><span class="chk"></span>平行系统：与掷骰/占领同等重要，是策略深度的核心支柱</span>
+      <span class="opt radio" data-val="main"><span class="chk"></span>主菜：卡牌主导对局走向，掷骰为辅</span>
+    </div>
+    <textarea placeholder="补充说明（可选）"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">A2.</span>卡牌池规模？</div>
+    <div class="options" data-q="A2" data-type="radio">
+      <span class="opt radio" data-val="8"><span class="chk"></span>小池（6~10 张），每张效果独特</span>
+      <span class="opt radio" data-val="16"><span class="chk"></span>中池（12~20 张），有一定重复抽到的概率</span>
+      <span class="opt radio" data-val="30"><span class="chk"></span>大池（25~40 张），几乎局局不同</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="若选"自定义"，请写具体数量"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">A3.</span>卡牌的艺术主题/命名风格？</div>
+    <div class="options" data-q="A3" data-type="radio">
+      <span class="opt radio" data-val="scifi"><span class="chk"></span>科幻太空：量子干涉、引力透镜、暗物质护盾等</span>
+      <span class="opt radio" data-val="political"><span class="chk"></span>政治博弈：外交讹诈、经济制裁、科技窃取等</span>
+      <span class="opt radio" data-val="cosmic"><span class="chk"></span>宇宙哲理：熵增诅咒、奇点跃迁、真空衰变等</span>
+      <span class="opt radio" data-val="hybrid"><span class="chk"></span>混合以上，不拘一格</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="若选"自定义"，写你的想法"></textarea>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">B</span>发放与持有规则</h2>
+  <div class="desc">每回合每人一张——发放时机、持有上限、手牌可见性。</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">B1.</span>发放时机——"一回合发一张"具体指什么时机？</div>
+    <div class="options" data-q="B1" data-type="radio">
+      <span class="opt radio" data-val="round_start"><span class="chk"></span>每大轮开始时（所有玩家同时获得 1 张）</span>
+      <span class="opt radio" data-val="turn_start"><span class="chk"></span>每回合开始时（该玩家行动前获得 1 张）</span>
+      <span class="opt radio" data-val="after_mode"><span class="chk"></span>选择模式后、掷骰前获得 1 张</span>
+      <span class="opt radio" data-val="turn_end"><span class="chk"></span>回合结束后获得 1 张（为下回合预备）</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="若选"自定义"，写具体时机"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">B2.</span>手牌上限是多少？</div>
+    <div class="options" data-q="B2" data-type="radio">
+      <span class="opt radio" data-val="1"><span class="chk"></span>1 张（当回合用不完就丢弃，保持节奏快）</span>
+      <span class="opt radio" data-val="2"><span class="chk"></span>2 张（有一点囤牌策略空间）</span>
+      <span class="opt radio" data-val="3"><span class="chk"></span>3 张（明显策略深度）</span>
+      <span class="opt radio" data-val="unlimited"><span class="chk"></span>无上限（想囤多少囤多少）</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">B3.</span>手牌对其他人可见吗？</div>
+    <div class="options" data-q="B3" data-type="radio">
+      <span class="opt radio" data-val="hidden"><span class="chk"></span>完全隐藏（只有自己知道有什么牌）</span>
+      <span class="opt radio" data-val="count_only"><span class="chk"></span>仅显示手牌数量，不显示内容</span>
+      <span class="opt radio" data-val="public"><span class="chk"></span>全公开（手牌内容对所有人可见）</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">B4.</span>卡牌用完后去哪？</div>
+    <div class="options" data-q="B4" data-type="radio">
+      <span class="opt radio" data-val="discard"><span class="chk"></span>进入弃牌堆，牌库抽完前不回收</span>
+      <span class="opt radio" data-val="reshuffle"><span class="chk"></span>牌库抽空时洗回，保证始终有牌可抽</span>
+      <span class="opt radio" data-val="unlimited_use"><span class="chk"></span>用完不弃，每张牌有冷却回合数而非消耗品</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="若选"自定义"或"冷却"，写具体规则"></textarea>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">C</span>使用时机与阶段集成</h2>
+  <div class="desc">卡牌在游戏流程的哪个环节可以使用？能否响应/打断？</div>
+
+  <div class="note">
+    <b>现行游戏阶段：</b>
+    Init → <span class="highlight">LaunchPhase</span>（发射）→ <span class="highlight">SelectMode</span>（选模式）→ Rolling → DevChainResolving → Occupying → OverflowChecking → RobberyResolving → CollapseResolving → TurnEnd → GameOver
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">C1.</span>卡牌可以在哪些阶段使用？（多选）</div>
+    <div class="options" data-q="C1" data-type="checkbox">
+      <span class="opt" data-val="launch"><span class="chk"></span>发射阶段（LaunchPhase）</span>
+      <span class="opt" data-val="select"><span class="chk"></span>选择模式阶段（SelectMode）</span>
+      <span class="opt" data-val="after_roll"><span class="chk"></span>掷骰后、占领前（Rolling → Occupying 之间）</span>
+      <span class="opt" data-val="after_occupy"><span class="chk"></span>占领后、溢出判定前</span>
+      <span class="opt" data-val="robbery"><span class="chk"></span>抢夺/崩坏时（作为应对或加强）</span>
+      <span class="opt" data-val="anytime"><span class="chk"></span>任意时刻（含响应/打断）</span>
+      <span class="opt" data-val="on_enemy_turn"><span class="chk"></span>他人回合也能用（类似 instant/响应牌）</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">C2.</span>使用卡牌是否消耗回合行动？</div>
+    <div class="options" data-q="C2" data-type="radio">
+      <span class="opt radio" data-val="free"><span class="chk"></span>不消耗：使用卡牌是免费附赠动作</span>
+      <span class="opt radio" data-val="replaces"><span class="chk"></span>替代行动：使用卡牌替代本回合的"掷骰+占领"</span>
+      <span class="opt radio" data-val="per_turn_limit"><span class="chk"></span>每回合限用 1 张，但不占用掷骰</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">C3.</span>一回合可以使用多张卡牌吗？</div>
+    <div class="options" data-q="C3" data-type="radio">
+      <span class="opt radio" data-val="1_per_turn"><span class="chk"></span>最多 1 张</span>
+      <span class="opt radio" data-val="unlimited_per_turn"><span class="chk"></span>不限制，有手牌就能连用</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">D</span>卡牌效果设计</h2>
+  <div class="desc">核心问题——卡牌能做什么？这里需要你明确偏好和禁区。</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">D1.</span>你希望卡牌能干涉哪些数值？（多选）</div>
+    <div class="options" data-q="D1" data-type="checkbox">
+      <span class="opt" data-val="dice"><span class="chk"></span>掷骰点数（加/减/重掷/固定值）</span>
+      <span class="opt" data-val="public"><span class="chk"></span>公共领土（直接增减）</span>
+      <span class="opt" data-val="private_self"><span class="chk"></span>自身私有领土（增益/护盾）</span>
+      <span class="opt" data-val="private_other"><span class="chk"></span>他人私有领土（窃取/削减）</span>
+      <span class="opt" data-val="multiplier"><span class="chk"></span>开发链倍率（×2→×3 以外的临时倍率）</span>
+      <span class="opt" data-val="robbery"><span class="chk"></span>抢夺/崩坏参数（降低损失或加剧伤害）</span>
+      <span class="opt" data-val="launch"><span class="chk"></span>发射条件（降低/免除发射门槛）</span>
+      <span class="opt" data-val="turn_order"><span class="chk"></span>回合顺序/额外回合/跳过他人</span>
+      <span class="opt" data-val="status"><span class="chk"></span>玩家状态（荒地/淘汰/已发射）</span>
+    </div>
+    <textarea placeholder="补充：哪些是禁区/绝对不希望出现的"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">D2.</span>卡牌效果的作用范围？</div>
+    <div class="options" data-q="D2" data-type="checkbox">
+      <span class="opt" data-val="self"><span class="chk"></span>仅自身</span>
+      <span class="opt" data-val="single_target"><span class="chk"></span>指定一名其他玩家</span>
+      <span class="opt" data-val="all_others"><span class="chk"></span>所有其他玩家</span>
+      <span class="opt" data-val="all"><span class="chk"></span>全场（含自己）</span>
+      <span class="opt" data-val="public_pool"><span class="chk"></span>仅公共领土</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">D3.</span>卡牌效果的持续时间？</div>
+    <div class="options" data-q="D3" data-type="checkbox">
+      <span class="opt" data-val="instant"><span class="chk"></span>即时生效（用一次就结束）</span>
+      <span class="opt" data-val="this_turn"><span class="chk"></span>持续到本回合结束</span>
+      <span class="opt" data-val="this_round"><span class="chk"></span>持续到本轮结束</span>
+      <span class="opt" data-val="n_turns"><span class="chk"></span>持续 N 回合后消失</span>
+      <span class="opt" data-val="permanent"><span class="chk"></span>永久效果（如被动加成）</span>
+      <span class="opt" data-val="until_triggered"><span class="chk"></span>条件触发型（设好条件，触发即消耗）</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">D4.</span>卡牌效果是否有代价/副作用？</div>
+    <div class="options" data-q="D4" data-type="radio">
+      <span class="opt radio" data-val="free_effect"><span class="chk"></span>纯增益，无代价——卡牌就是福利</span>
+      <span class="opt radio" data-val="cost"><span class="chk"></span>有代价（如支付领土、跳过掷骰等）——高风险高回报</span>
+      <span class="opt radio" data-val="mixed"><span class="chk"></span>混合：部分牌免费，部分牌有代价</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="note warn">
+    <b>⚠️ 关键设计约束：</b>卡牌不能破坏游戏的零和/终局判定逻辑。如果卡牌直接增减公共领土，需要考虑是否影响"公共归零=终局"这一核心规则。如果卡牌可以直接加私有领土，需要考虑是否影响公平性。
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">E</span>平衡与数值</h2>
+  <div class="desc">确定卡牌在多玩家对局中的平衡哲学。</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">E1.</span>卡牌之间的强度差异策略？</div>
+    <div class="options" data-q="E1" data-type="radio">
+      <span class="opt radio" data-val="flat"><span class="chk"></span>均等：所有卡牌强度相近，侧重策略多样性</span>
+      <span class="opt radio" data-val="tiered"><span class="chk"></span>分层：普通/稀有/史诗，抽到好牌有惊喜</span>
+      <span class="opt radio" data-val="situational"><span class="chk"></span>情境型：没有绝对强弱，一切看时机和局势</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">E2.</span>是否需要卡牌稀有度/权重系统？</div>
+    <div class="options" data-q="E2" data-type="radio">
+      <span class="opt radio" data-val="equal_weight"><span class="chk"></span>不需要，所有牌等概率抽取</span>
+      <span class="opt radio" data-val="weighted"><span class="chk"></span>需要权重：强牌出现概率更低</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">E3.</span>是否需要防滚雪球机制？（领先者更难获得强牌 / 落后者更容易获得强牌）</div>
+    <div class="options" data-q="E3" data-type="radio">
+      <span class="opt radio" data-val="no_catchup"><span class="chk"></span>不需要——运气也是实力的一部分</span>
+      <span class="opt radio" data-val="soft_catchup"><span class="chk"></span>软追赶：略提升落后者抽到强牌的概率</span>
+      <span class="opt radio" data-val="hard_catchup"><span class="chk"></span>硬追赶：显著机制保证落后者有翻盘可能</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">F</span>联机与同步</h2>
+  <div class="desc">多人对战下，卡牌系统如何保证公平同步？</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">F1.</span>卡牌抽取的随机源？</div>
+    <div class="options" data-q="F1" data-type="radio">
+      <span class="opt radio" data-val="server_seed"><span class="chk"></span>使用现有 SeededRandom（服务端种子同步），与掷骰一致</span>
+      <span class="opt radio" data-val="deal_later"><span class="chk"></span>服务端直接下发抽牌结果（不依赖本地种子）</span>
+      <span class="opt radio" data-val="not_now"><span class="chk"></span>联机阶段再考虑，先做单机</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">F2.</span>隐藏手牌在联机模式下如何保证不被作弊？</div>
+    <div class="options" data-q="F2" data-type="radio">
+      <span class="opt radio" data-val="server_trust"><span class="chk"></span>服务端权威：手牌内容仅服务端知道，客户端只知数量</span>
+      <span class="opt radio" data-val="deal_open"><span class="chk"></span>干脆全公开手牌，省去反作弊复杂度</span>
+      <span class="opt radio" data-val="not_now"><span class="chk"></span>联机阶段再考虑</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">G</span>UI / UX</h2>
+  <div class="desc">卡牌在界面上的呈现方式。</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">G1.</span>卡牌在界面上的位置？</div>
+    <div class="options" data-q="G1" data-type="radio">
+      <span class="opt radio" data-val="bottom_bar"><span class="chk"></span>屏幕底部手牌栏（类似炉石/杀戮尖塔）</span>
+      <span class="opt radio" data-val="side_panel"><span class="chk"></span>侧边栏面板</span>
+      <span class="opt radio" data-val="corner"><span class="chk"></span>角落小图标，点击展开</span>
+      <span class="opt radio" data-val="overlay"><span class="chk"></span>回合开始时弹出选牌界面</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">G2.</span>卡牌视觉风格？</div>
+    <div class="options" data-q="G2" data-type="radio">
+      <span class="opt radio" data-val="pixel"><span class="chk"></span>像素风（与游戏整体一致）</span>
+      <span class="opt radio" data-val="scifi_card"><span class="chk"></span>科幻全息卡片风（半透明 + 发光边缘）</span>
+      <span class="opt radio" data-val="minimal"><span class="chk"></span>极简图标 + 文字（不抢戏）</span>
+      <span class="opt radio" data-val="custom"><span class="chk"></span>自定义：</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">G3.</span>卡牌是否需要动效？</div>
+    <div class="options" data-q="G3" data-type="checkbox">
+      <span class="opt" data-val="draw"><span class="chk"></span>抽牌动画（从牌堆飞入手牌）</span>
+      <span class="opt" data-val="play"><span class="chk"></span>使用动画（卡牌翻转 + 效果粒子）</span>
+      <span class="opt" data-val="discard"><span class="chk"></span>弃牌动画</span>
+      <span class="opt" data-val="hover"><span class="chk"></span>悬浮放大 + 详细信息</span>
+      <span class="opt" data-val="minimal_fx"><span class="chk"></span>尽量少动效，保持轻量</span>
+    </div>
+    <textarea placeholder="补充说明"></textarea>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">H</span>开放问题：脑洞区</h2>
+  <div class="desc">你想加的任何卡牌效果、机制、想法——不需要系统化，想到什么写什么。</div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">H1.</span>你脑海中已经想好的卡牌效果有哪些？（哪怕只有名字/概念也行）</div>
+    <textarea placeholder="例：""时间扭曲：跳过下一个玩家的回合""、""引力弹弓：掷骰点数翻倍""、""暗月协定：所有玩家私有领土 -2，公共 +8""... 写得越多越好"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">H2.</span>有没有参考游戏？（如果有，告诉我它哪里做得好）</div>
+    <textarea placeholder="例：杀戮尖塔的遗物系统、三国杀的锦囊牌、UNO 的功能牌、大富翁的机会卡..."></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">H3.</span>你最担心卡牌系统带来的什么问题？（平衡性？复杂度？开发量？）</div>
+    <textarea placeholder="直接说，没有"政治正确"——这是帮你把控方向的"></textarea>
+  </div>
+
+  <div class="q">
+    <div class="q-title"><span class="q-num">H4.</span>还有任何关于卡牌系统的想法、限制、愿景？自由发挥。</div>
+    <textarea placeholder="不限内容"></textarea>
+  </div>
+</section>
+
+<div class="summary-bar">
+  <span class="progress" id="progress">已填 0 / 18 题</span>
+  <div>
+    <button class="btn secondary" onclick="ClearAll()">清空重填</button>
+    <button class="btn" onclick="GenerateSummary()">生成我的需求摘要</button>
+  </div>
+</div>
+
+</div>
+
+<div class="overlay" id="overlay" onclick="CloseSummary()"></div>
+<div class="result-panel" id="result-panel">
+  <h3>📋 技能卡罗牌 · 需求摘要</h3>
+  <p style="color:var(--muted);font-size:13px">请把这段复制粘贴给我，我会基于此设计完整方案。</p>
+  <pre id="result-text"></pre>
+  <button class="close-btn" onclick="CopyAndClose()">复制到剪贴板</button>
+  <button class="close-btn secondary" style="background:rgba(255,255,255,.08);color:var(--ink);margin-left:8px" onclick="CloseSummary()">关闭</button>
+</div>
+
+<footer>《第二绿洲》技能卡罗牌系统 · 开发者调查问卷 · 2026-07-27</footer>
+
+<script>
+(function(){
+  const formData = {};
+  let answeredCount = 0;
+
+  // Main question click handler
+  document.querySelector('.wrap').addEventListener('click', function(e){
+    const opt = e.target.closest('.opt');
+    if (!opt) return;
+
+    const qContainer = opt.closest('.q');
+    const options = qContainer.querySelector('.options');
+    const qId = options.dataset.q;
+    const type = options.dataset.type;
+    const val = opt.dataset.val;
+
+    if (type === 'radio') {
+      options.querySelectorAll('.opt').forEach(o => o.classList.remove('picked'));
+      opt.classList.add('picked');
+      formData[qId] = val;
+      updateProgress();
+    } else if (type === 'checkbox') {
+      opt.classList.toggle('picked');
+      const picked = options.querySelectorAll('.opt.picked');
+      formData[qId] = Array.from(picked).map(o => o.dataset.val);
+      updateProgress();
+    }
+  });
+
+  // Textarea handler
+  document.querySelector('.wrap').addEventListener('input', function(e){
+    if (e.target.tagName === 'TEXTAREA') {
+      const qContainer = e.target.closest('.q');
+      const options = qContainer.querySelector('.options');
+      const qId = options.dataset.q;
+      // Don't override option selections, but track text separately
+      updateProgress();
+    }
+  });
+
+  function updateProgress(){
+    let count = 0;
+    const total = 18;
+    for (const key in formData) {
+      const val = formData[key];
+      if (val && (typeof val === 'string' || (Array.isArray(val) && val.length > 0))) {
+        count++;
+      }
+    }
+    // Also count textareas with content
+    document.querySelectorAll('.q textarea').forEach(ta => {
+      if (ta.value.trim()) count++;
+    });
+    answeredCount = Math.min(count, total);
+    document.getElementById('progress').textContent = '已填 ' + answeredCount + ' / ' + total + ' 题';
+  }
+
+  window.ClearAll = function(){
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('picked'));
+    document.querySelectorAll('textarea').forEach(ta => ta.value = '');
+    for (const key in formData) delete formData[key];
+    answeredCount = 0;
+    updateProgress();
+  };
+
+  window.GenerateSummary = function(){
+    const lines = [];
+    lines.push('=== 《第二绿洲》技能卡罗牌 · 需求摘要 ===');
+    lines.push('');
+
+    const sections = document.querySelectorAll('section.card');
+    sections.forEach(section => {
+      const title = section.querySelector('h2').textContent.trim();
+      lines.push('【' + title + '】');
+      lines.push('');
+
+      const questions = section.querySelectorAll('.q');
+      questions.forEach(q => {
+        const qTitle = q.querySelector('.q-title').textContent.trim();
+        const options = q.querySelector('.options');
+        const type = options.dataset.type;
+        const textarea = q.querySelector('textarea');
+
+        if (type === 'radio') {
+          const picked = options.querySelector('.opt.picked');
+          if (picked) {
+            lines.push(qTitle);
+            lines.push('  → ' + picked.textContent.replace(/[✓]/g,'').trim());
+          }
+        } else if (type === 'checkbox') {
+          const picked = options.querySelectorAll('.opt.picked');
+          if (picked.length > 0) {
+            lines.push(qTitle);
+            picked.forEach(p => {
+              lines.push('  ☑ ' + p.textContent.replace(/[✓]/g,'').trim());
+            });
+          }
+        }
+
+        if (textarea && textarea.value.trim()) {
+          lines.push('  💬 ' + textarea.value.trim());
+        }
+
+        lines.push('');
+      });
+    });
+
+    lines.push('=== 生成时间: ' + new Date().toLocaleString('zh-CN') + ' ===');
+    lines.push('=== 请将以上内容完整复制给我 ===');
+
+    const result = lines.join('\n');
+    document.getElementById('result-text').textContent = result;
+    document.getElementById('result-panel').classList.add('show');
+    document.getElementById('overlay').classList.add('show');
+  };
+
+  window.CloseSummary = function(){
+    document.getElementById('result-panel').classList.remove('show');
+    document.getElementById('overlay').classList.remove('show');
+  };
+
+  window.CopyAndClose = function(){
+    const text = document.getElementById('result-text').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      CloseSummary();
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      CloseSummary();
+    });
+  };
+})();
+</script>
+
+</body>
+</html>

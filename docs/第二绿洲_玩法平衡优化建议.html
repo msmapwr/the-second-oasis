@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《第二绿洲》玩法与平衡优化建议 · 游戏设计师审阅版</title>
+<style>
+  :root{
+    --bg:#f7f9fc;
+    --panel:#ffffff;
+    --ink:#1f2733;
+    --muted:#5b6675;
+    --line:#e3e8ef;
+    --brand:#0e7c86;
+    --brand-soft:#e3f3f4;
+    --accent:#f0a02c;
+    --danger:#d9534f;
+    --danger-soft:#fbe9e8;
+    --ok:#2e8b57;
+    --ok-soft:#e7f4ec;
+    --warn:#b8860b;
+    --warn-soft:#fcf3df;
+    --radius:14px;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7;font-size:15px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 22px 80px}
+  header.hero{
+    background:linear-gradient(135deg,#0e7c86 0%,#135b6b 60%,#0b3d49 100%);
+    color:#fff;border-radius:var(--radius);padding:40px 38px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden;
+  }
+  header.hero::after{
+    content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;
+    background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%);
+  }
+  header.hero h1{margin:0;font-size:34px;letter-spacing:1px}
+  header.hero .en{font-size:15px;opacity:.8;letter-spacing:3px;text-transform:uppercase;margin-top:6px}
+  header.hero .tag{display:inline-block;margin-top:18px;background:rgba(255,255,255,.16);
+    padding:5px 12px;border-radius:999px;font-size:13px;margin-right:8px}
+  section.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px 30px;margin:22px 0;box-shadow:var(--shadow)}
+  section.card h2{margin:0 0 4px;font-size:22px;display:flex;align-items:center;gap:10px}
+  section.card h2 .num{display:inline-flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:8px;background:var(--brand-soft);color:var(--brand);
+    font-size:14px;font-weight:700;flex:0 0 auto}
+  section.card h3{margin:22px 0 8px;font-size:16px;color:var(--brand);border-left:3px solid var(--brand);
+    padding-left:10px}
+  section.card p{margin:10px 0}
+  .lead{color:var(--muted);margin-top:2px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  tbody tr:nth-child(even){background:#fafcfe}
+  td code{font-family:var(--mono);background:#eef2f7;padding:1px 6px;border-radius:5px;font-size:13px}
+  td .val{font-family:var(--mono);color:var(--brand);font-weight:600}
+  .note{border-radius:10px;padding:14px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .note.tip{background:var(--ok-soft);border-color:#bfe3cd;color:#1f5c39}
+  .note.warn{background:var(--warn-soft);border-color:#ecd9a6;color:#7a5500}
+  .note.danger{background:var(--danger-soft);border-color:#f1c6c4;color:#8a2b28}
+  .note b{display:block;margin-bottom:4px;font-weight:700}
+  .pills{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .pill{background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600}
+  .formula{background:#0f2a30;color:#d6f3f5;border-radius:10px;padding:12px 16px;margin:12px 0;
+    font-family:var(--mono);font-size:13.5px;line-height:1.9;overflow-x:auto}
+  .formula .c{color:#7fd6dd}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:40px}
+  .spec{margin:12px 0;padding:12px 16px;background:#fbfdff;border:1px dashed var(--line);border-radius:10px}
+  .spec b{display:block;color:var(--brand);margin-bottom:4px}
+  ul,ol{margin:8px 0}
+  li{margin:6px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>《第二绿洲》</h1>
+  <div class="en">Gameplay & Balance Optimization Notes</div>
+  <div>
+    <span class="tag">基于计划书 v1.1</span>
+    <span class="tag">游戏设计师审阅版</span>
+    <span class="tag">v1.2 草案</span>
+  </div>
+  <div class="meta-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:24px">
+    <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:12px 14px"><b style="display:block;font-size:11px;letter-spacing:1px;opacity:.7;text-transform:uppercase">审阅日期</b><span style="font-size:15px;font-weight:600">2026-07-26</span></div>
+    <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:12px 14px"><b style="display:block;font-size:11px;letter-spacing:1px;opacity:.7;text-transform:uppercase">状态</b><span style="font-size:15px;font-weight:600">建议稿 · 可选变体</span></div>
+  </div>
+</header>
+
+<section class="card" id="verdict">
+  <h2><span class="num">1</span>审阅结论</h2>
+  <p class="lead">一句话：A 优先级核心规则已经扎实、可玩，且数值平衡；下一步优化应放在<strong>决策空间、玩家交互与落后追赶</strong>上，而不是推翻现有规则。</p>
+  <p>读完《第二绿洲》计划书 v1.1 并核对 <code>src/Core/</code> 的实现后，我认为当前系统有两个很强的乐趣支点：</p>
+  <ul>
+    <li><b>开发链（连击）</b>：玩家在连续对子的“再博一次”与“见好就收”之间做决策，情感曲线清晰。</li>
+    <li><b>公共池归零</b>：零和竞争的张力随着公共领土减少而加速，配合抢夺 / 崩坏制造了戏剧化反转。</li>
+  </ul>
+  <p>同时发现四个可进一步打磨的杠杆：</p>
+  <ol>
+    <li><b>落后追赶</b>：领先者可以切“稳健”或“不开发”龟缩到终局，落后者缺少可控的反击手段。</li>
+    <li><b>交互次数</b>：整局只有一次“抢夺”直接指向玩家，之后全是全局随机的“崩坏”。</li>
+    <li><b>AI 性格出口</b>：<code>Avenger</code> 的复仇维度没有对应的规则机制，只能影响评分倾向。</li>
+    <li><b>终局节奏</b>：公共池在 20 以下时，游戏可能拖尾，也可能被一次崩坏直接带走。</li>
+  </ol>
+  <div class="note tip"><b>建议方向</b>把优化做成“v1.2 变体包”，通过 <code>GameConfig</code> 开关控制。这样作品集既保留 v1.1 的权威规则，又能展示更丰富的策略层。</div>
+</section>
+
+<section class="card" id="diagnosis">
+  <h2><span class="num">2</span>当前规则平衡性诊断</h2>
+  <h3>2.1 三种模式的期望收益</h3>
+  <table>
+    <thead><tr><th>模式</th><th>每回合期望 RawGain</th><th>有效期望产出（含开发链）</th><th>主要风险</th></tr></thead>
+    <tbody>
+      <tr><td>稳健 Steady</td><td class="val">3.50</td><td class="val">3.50</td><td>无风险，无爆发</td></tr>
+      <tr><td>激进 Aggressive（无脑连博）</td><td class="val">3.11</td><td class="val">≈ 3.11</td><td>约 1/36 概率开发过度</td></tr>
+      <tr><td>激进 Aggressive（最优链管理）<br><small>0/1 链时激进，2 链时稳健</small></td><td class="val">3.55</td><td class="val">3.55</td><td> overload 可规避</td></tr>
+      <tr><td>不开发 None</td><td class="val">0</td><td class="val">0</td><td>机会成本高，但可避险</td></tr>
+    </tbody>
+  </table>
+  <div class="note tip"><b>解读</b>激进模式在“会停手”的玩家手里比稳健略优（约 +1.5%），无脑激进则略亏。这说明三种模式在数值上是合格的：稳健是基准，激进奖励链管理，None 是战术暂停。问题不在数值，而在领先者可以一直稳健。</div>
+
+  <h3>2.2 蒙特卡洛数据回顾</h3>
+  <table>
+    <thead><tr><th>指标</th><th>2 人局</th><th>3 人局</th><th>4 人局</th></tr></thead>
+    <tbody>
+      <tr><td>平均回合数</td><td class="val">32.4</td><td class="val">34.5</td><td class="val">37.7</td></tr>
+      <tr><td>先手胜率</td><td class="val">53.3%</td><td class="val">35.7%</td><td class="val">27.9%</td></tr>
+      <tr><td>后手胜率</td><td class="val">46.7%</td><td class="val">31.0%</td><td class="val">21.9%</td></tr>
+      <tr><td>抢夺触发率</td><td class="val">≈ 89%</td><td class="val">≈ 88%</td><td class="val">≈ 88%</td></tr>
+      <tr><td>崩坏触发率</td><td class="val">≈ 84%</td><td class="val">≈ 83%</td><td class="val">≈ 83%</td></tr>
+      <tr><td>开发过度触发率</td><td class="val">≈ 8%</td><td class="val">≈ 7.4%</td><td class="val">≈ 8.1%</td></tr>
+    </tbody>
+  </table>
+  <div class="note warn"><b>诊断</b>
+    <ul>
+      <li><b>对局时长合理</b>：32–38 回合符合 15–30 分钟定位。</li>
+      <li><b>先手优势可控</b>：2 人局 +6.6pp，4 人局 +6.0pp，处于可接受范围，但仍有优化空间。</li>
+      <li><b>机制触发频率过高</b>：在“全员激进”模拟下，抢夺 / 崩坏几乎必然触发。实际对局中混合稳健会降低，这是设计意图，但提示玩家行为会强烈影响节奏。</li>
+      <li><b>守恒良好</b>：终局私有总和均值 ≈ 91–100，说明规则没有资源漏洞。</li>
+    </ul>
+  </div>
+</section>
+
+<section class="card" id="painpoints">
+  <h2><span class="num">3</span>关键痛点</h2>
+  <h3>3.1 领先者可“龟缩”</h3>
+  <p>一旦某玩家建立 5–10 点的私有优势，他可以直接切“稳健”甚至“不开发” conservative strategy，因为：</p>
+  <ul>
+    <li>稳健不会倒扣，不会触发开发过度。</li>
+    <li>不开发不消耗公共池，反而延缓终局，让对手先触发崩坏。</li>
+    <li>除了一次抢夺外，没有针对领先者的直接打击。</li>
+  </ul>
+  <p>这会导致终局变成“谁先手谁稳赢”或“谁先崩坏谁倒霉”，决策空间收窄。</p>
+
+  <h3>3.2 一次抢夺后的交互真空</h3>
+  <p>抢夺是一个非常强的再分配机制：失败方损失最多 <code>m2</code>，胜利方获得 <code>m2 - r</code>，公共回流 <code>r</code>。但它只触发一次。之后所有溢出都进入全局随机的崩坏，玩家之间不再互相点名，社交张力下降。</p>
+
+  <h3>3.3 AI 的“复仇”维度没有规则出口</h3>
+  <p>AI 性格中的 <code>Vengefulness</code> 目前只能影响评分权重，没有真正的复仇动作。人类玩家也缺少“被搞了就要搞回来”的通道，导致情感曲线缺少闭环。</p>
+
+  <h3>3.4 终局节奏两极化</h3>
+  <p>当公共池 ≤ 20 时：</p>
+  <ul>
+    <li>如果所有玩家都稳健，可能需要 5–10 回合才能归零，拖尾。</li>
+    <li>如果有人激进溢出，一次崩坏系数 <code>x</code> 可能直接把公共扣到 0，胜负由一次随机事件决定。</li>
+  </ul>
+  <p>需要一个更稳定的“终局加速器”。</p>
+</section>
+
+<section class="card" id="proposals">
+  <h2><span class="num">4</span>推荐机制</h2>
+  <p>下面四个机制按“实现复杂度从低到高”排列，均可通过 <code>GameConfig</code> 开关启用。建议先组合前三个作为 <b>v1.2 标准变体包</b>。</p>
+
+  <h3>4.1 公敌税（Leader Tax）—— 解决“龟缩”</h3>
+  <div class="spec">
+    <b>机制定位</b>
+    <p>每轮结束时，私有领土严格领先的玩家向公共池缴纳“外交孤立税”。领先不是白给的，而是有维护成本。</p>
+  </div>
+  <div class="spec">
+    <b>玩家体验目标</b>
+    <p>“我终于追上来了——但这也意味着我成了靶子。”让领先者不能无脑稳健，同时给落后者一个自动化的追赶窗口。</p>
+  </div>
+  <div class="spec">
+    <b>输入 / 输出</b>
+    <p>输入：每轮结束后的 <code>Snapshot</code>。<br>
+    输出：领先者 <code>Private -= Tax</code>，<code>Public += Tax</code>（严格零和）。</p>
+  </div>
+  <div class="formula">
+<span class="c">// 每轮结束结算（仅当存在唯一领先者时）</span>
+Leader = argmax(Private_i)
+Tax = 1  <span class="c">// [PLACEHOLDER] 基础值，建议按领先幅度缩放</span>
+Private_Leader' = max(0, Private_Leader - Tax)
+Public' = Public + (Private_Leader - Private_Leader')
+  </div>
+  <div class="spec">
+    <b>边界情况</b>
+    <ul>
+      <li>多人并列最高：不征税（避免随机 tie-break 被感觉为不公平）。</li>
+      <li>领先者私有为 0：税额为 0，不反向扣。</li>
+      <li>征税后公共可能超过 100？不会，因为税只来自玩家私有，总量守恒。</li>
+    </ul>
+  </div>
+  <div class="spec">
+    <b>调参杠杆</b>
+    <p><code>LeaderTaxBase</code>（基础税额，默认 1）、<code>LeaderTaxScale</code>（是否按领先幅度缩放，如每领先 10 点 +1）。</p>
+  </div>
+  <div class="spec">
+    <b>实现提示</b>
+    <p>在 <code>GameState</code> 的回合推进末尾或新增 <code>EndOfRoundPhase</code> 中调用；每轮只触发一次，记录到 <code>TurnHistory</code>。</p>
+  </div>
+
+  <h3>4.2 顺位轮换（Rotating Start）—— 解决先手优势</h3>
+  <div class="spec">
+    <b>机制定位</b>
+    <p>每轮的起始玩家按轮次轮换，而不是永远 0 号玩家先手。</p>
+  </div>
+  <div class="spec">
+    <b>玩家体验目标</b>
+    <p>“我这次最后行动，但下一轮我先手。”让座位顺序不再决定长期胜率。</p>
+  </div>
+  <div class="formula">
+<span class="c">// 每轮开始</span>
+FirstPlayer = RoundIndex % PlayerCount
+CurrentPlayer = FirstPlayer
+  </div>
+  <div class="spec">
+    <b>边界情况</b>
+    <p>发射阶段和重新发射阶段仍以自然座位顺序处理，避免打乱“谁还没发射”的逻辑。</p>
+  </div>
+  <div class="spec">
+    <b>实现提示</b>
+    <p>在 <code>GameState</code> 中增加 <code>_RoundIndex</code>，每轮完整循环后 <code>+1</code>。</p>
+  </div>
+
+  <h3>4.3 枯竭冲刺（Scarcity Sprint）—— 解决终局拖尾 / 随机</h3>
+  <div class="spec">
+    <b>机制定位</b>
+    <p>当公共池进入最后阶段，所有资源争夺效率提升，终局被强制加速。</p>
+  </div>
+  <div class="spec">
+    <b>玩家体验目标</b>
+    <p>“池子快干了，所有人都在疯抢。”让终局更有仪式感，而不是慢慢磨或突然暴毙。</p>
+  </div>
+  <div class="formula">
+<span class="c">// 当公共池低于阈值时进入冲刺阶段</span>
+SprintThreshold = 30
+SprintBonus = 2
+
+if Public <= SprintThreshold:
+  RawGain' = RawGain + SprintBonus
+  <span class="c">// 不开发模式下不生效，因为 RawGain = 0</span>
+  </div>
+  <div class="spec">
+    <b>边界情况</b>
+    <ul>
+      <li>冲刺奖励只加成 RawGain，仍然受开发链倍率影响，因此连击对子在冲刺期更恐怖。</li>
+      <li>如果 RawGain 为负（激进倒扣），冲刺奖励是否仍加？建议“只加正收益，负收益不变”，否则倒扣会变得更疼。</li>
+    </ul>
+  </div>
+  <div class="spec">
+    <b>调参杠杆</b>
+    <p><code>SprintThreshold</code>（默认 30）、<code>SprintBonus</code>��默认 2）。可在蒙特卡洛中测试 20/25/30 三个阈值。</p>
+  </div>
+
+  <h3>4.4 复仇突袭（Revenge Raid）—— 解决交互与 AI 出口</h3>
+  <div class="spec">
+    <b>机制定位</b>
+    <p>被抢夺的玩家获得一枚“复仇令牌”，可在后续任一回合消耗它发动一次针对抢夺者的突袭。</p>
+  </div>
+  <div class="spec">
+    <b>玩家体验目标</b>
+    <p>“你抢我？我记着。”给 <code>Avenger</code> 性格和人类玩家一个情感闭环，同时把交互从一次扩展到全局。</p>
+  </div>
+  <div class="formula">
+<span class="c">// 复仇令牌获取</span>
+if 玩家是抢夺中的低者（或崩坏中损失最大者）:
+  RevengeToken = 1
+
+<span class="c">// 发动突袭（替代普通模式，占用一回合）</span>
+Target = 默认抢夺者 / 崩坏发起者（人类可手动选择任意玩家）
+Roll = 1 颗骰子（1~6）
+if Roll >= 4:  <span class="c">// [PLACEHOLDER] 成功率阈值</span>
+  Steal = Roll - 2  <span class="c">// 1~4</span>
+  Target.Private -= min(Steal, Target.Private)
+  Self.Private += Steal  <span class="c">// 零和转移</span>
+else:
+  Self.Private -= 1  <span class="c">// 失败惩罚，回归公共池</span>
+RevengeToken = 0
+  </div>
+  <div class="spec">
+    <b>边界情况</b>
+    <ul>
+      <li>令牌最多 1 枚；再次被抢不叠加。</li>
+      <li>目标私有不足时，只扣除实际可用部分。</li>
+      <li>目标处于荒地 / 需重新发射时仍可被突袭，但收益可能为 0。</li>
+      <li>若目标已经离开游戏（不可能，因为无淘汰），忽略。</li>
+    </ul>
+  </div>
+  <div class="spec">
+    <b>调参杠杆</b>
+    <p><code>RevengeSuccessThreshold</code>（成功阈值，默认 4）、<code>RevengeFailureCost</code>（失败惩罚，默认 1）、<code>RevengeStealFormula</code>（Roll-2 / Roll / Roll/2）。</p>
+  </div>
+  <div class="spec">
+    <b>实现提示</b>
+    <p>需要新增 <code>DiceMode.Revenge</code> 和 <code>RevengeToken</code> 字段；AI 的 <code>DecideMode</code> 中已支持性格权重，可直接接入。</p>
+  </div>
+</section>
+
+<section class="card" id="tuning">
+  <h2><span class="num">5</span>平衡性调参表</h2>
+  <p>以下数值均为“假设值”，需经过蒙特卡洛 + 实际试玩校准后改为正式值。</p>
+  <table>
+    <thead><tr><th>变量</th><th>当前值</th><th>建议范围</th><th>调参理由</th></tr></thead>
+    <tbody>
+      <tr><td>公共领土初值 <code>InitialPublic</code></td><td class="val">100</td><td>80–120</td><td>80 可把时长压到 20 回合左右；120 适合更长对局。</td></tr>
+      <tr><td>发射成功阈值 <code>LaunchThreshold</code></td><td class="val">7</td><td>6–8</td><td>7 成功率 58%；降到 6 为 75%，减少开局等待。</td></tr>
+      <tr><td>发射成功奖励 <code>LaunchReward</code></td><td class="val">2</td><td>1–3</td><td>奖励过高会放大先手；1 更保守。</td></tr>
+      <tr><td>崩坏系数初值 <code>CollapseInitialX</code></td><td class="val">2</td><td>1–3</td><td>第一次崩坏损失目标 = x·m2；x=1 更温和，x=3 更刺激。</td></tr>
+      <tr><td>激进倒扣阈值</td><td class="val">Sum ≤ 6</td><td>Sum ≤ 5 / 6</td><td>≤5 让激进期望从 3.11 提升到 4.78，更吸引高风险玩家。</td></tr>
+      <tr><td>公敌税基础额 <code>LeaderTaxBase</code></td><td class="val">—</td><td>1–2</td><td>每轮 1 点可在整局追回 8–16 点；2 点适合更快追分。</td></tr>
+      <tr><td>枯竭冲刺阈值 <code>SprintThreshold</code></td><td class="val">—</td><td>20–40</td><td>30 约等于最后 6–10 回合进入冲刺；20 更激进。</td></tr>
+      <tr><td>枯竭冲刺奖励 <code>SprintBonus</code></td><td class="val">—</td><td>1–3</td><td>2 能让终局收益提升约 50%，又不会完全颠覆前期积累。</td></tr>
+      <tr><td>复仇成功阈值 <code>RevengeSuccessThreshold</code></td><td class="val">—</td><td>3–5</td><td>4 时成功率 50%，3 时 67%；越高越依赖运气。</td></tr>
+      <tr><td>复仇失败惩罚 <code>RevengeFailureCost</code></td><td class="val">—</td><td>0–2</td><td>1 保证有成本；0 会让突袭成为纯向上攻击。</td></tr>
+    </tbody>
+  </table>
+  <div class="note tip"><b>数值原则</b>每次只调一个变量，跑 1000 局蒙特卡洛，观察：平均回合、胜率方差、先手优势、特殊机制触发率。避免同时改多个参数，否则无法归因。</div>
+</section>
+
+<section class="card" id="combo">
+  <h2><span class="num">6</span>推荐组合：v1.2 标准变体包</h2>
+  <p>如果希望一次只改一个“最小可用变体”，建议启用以下组合：</p>
+  <div class="pills">
+    <span class="pill">公敌税</span>
+    <span class="pill">顺位轮换</span>
+    <span class="pill">枯竭冲刺</span>
+  </div>
+  <p><b>理由：</b></p>
+  <ul>
+    <li><b>公敌税</b>直接削弱龟缩，让落后者有被动追赶。</li>
+    <li><b>顺位轮换</b>几乎零风险，立即平滑先手优势。</li>
+    <li><b>枯竭冲刺</b>把随机崩坏转化为“可预期的终局加速器”，玩家可以提前几回合开始规划。</li>
+  </ul>
+  <p><b>复仇突袭</b>作为可选扩展，建议放在第二批实现。它引入新的 UI（选择目标、复仇令牌图标）和新的模式，收益很高但实现成本也更高。</p>
+</section>
+
+<section class="card" id="next">
+  <h2><span class="num">7</span>下一步：验证与实现</h2>
+  <ol>
+    <li><b>扩展蒙特卡洛模拟</b>：让 <code>MonteCarloSimulation</code> 支持策略混合（例如 30% 稳健 / 70% 激进），并加入新机制的开关。对比变体包与 v1.1 的胜率方差、平均回合。</li>
+    <li><b>在 <code>GameConfig</code> 中新增变体开关</b>，如 <code>EnableLeaderTax</code>、<code>EnableRotatingStart</code>、<code>EnableScarcitySprint</code>，保证旧规则可一键回归。</li>
+    <li><b>AI 适配</b>：让 <code>Evaluator</code> 在计算三种模式时，把 Leader Tax、Revenge Token、Sprint Bonus 纳入评分，确保 AI 也能利用新机制。</li>
+    <li><b>三人试玩</b>：每改完一个变量就试玩 3–5 局，记录“领先者是否还能龟缩”“终局是否更有仪式感”。</li>
+  </ol>
+  <div class="note warn"><b>不要一次性全改</b>建议先实现“顺位轮换 + 枯竭冲刺”（低风险），跑测试通过后再加“公敌税”，最后才是“复仇突袭”。</div>
+</section>
+
+<section class="card" id="changelog">
+  <h2><span class="num">Δ</span>变更日志</h2>
+  <table>
+    <thead><tr><th>版本</th><th>日期</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>v1.2 草案</td><td>2026-07-26</td><td>基于计划书 v1.1 提出 4 个可选优化机制（公敌税、顺位轮换、枯竭冲刺、复仇突袭）及调参表。</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  《第二绿洲》The Second Oasis · 玩法与平衡优化建议 · 游戏设计师审阅版 · 2026-07-26<br>
+  本稿为可选变体，不替代计划书 v1.1 的权威规则。
+</footer>
+
+</div>
+</body>
+</html>

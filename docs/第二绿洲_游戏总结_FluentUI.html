@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>《第二绿洲》全量游戏总结 · The Second Oasis · Fluent UI</title>
+<style>
+  /* ============ Fluent 2 设计令牌 ============ */
+  :root{
+    --fui-font: 'Segoe UI', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --fui-font-mono: 'Cascadia Code', 'SF Mono', Consolas, 'Liberation Mono', monospace;
+
+    --fui-bg: #f5f5f5;            /* neutralBackground1 */
+    --fui-bg-2: #faf9f8;          /* neutralBackground2 */
+    --fui-surface: #ffffff;       /* card */
+    --fui-surface-hover: #f3f2f1;
+    --fui-ink: #242424;           /* neutralForeground1 */
+    --fui-ink-2: #616161;         /* neutralForeground2 */
+    --fui-ink-3: #8a8886;         /* neutralForeground3 */
+    --fui-border: #d1d1d1;        /* neutralStroke1 */
+    --fui-border-2: #e1dfdd;      /* neutralStroke2 */
+
+    --fui-brand: #0f6cbd;         /* brand/communicationForeground1 */
+    --fui-brand-hover: #115ea3;
+    --fui-brand-pressed: #0c3b5e;
+    --fui-brand-bg: #eaf3fc;
+
+    --fui-teal: #0e7c86;          /* 游戏主题色 */
+    --fui-teal-bg: #e3f3f4;
+    --fui-green: #107c10;
+    --fui-green-bg: #e7f4ec;
+    --fui-red: #c4314b;
+    --fui-red-bg: #fdf3f4;
+    --fui-orange: #b4500e;
+    --fui-orange-bg: #fcf3df;
+    --fui-purple: #5c2e91;
+    --fui-purple-bg: #f3eefb;
+
+    --fui-radius: 8px;
+    --fui-radius-sm: 4px;
+    --fui-shadow-2: 0 1px 2px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);
+    --fui-shadow-8: 0 3px 8px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);
+    --fui-shadow-16: 0 8px 16px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--fui-bg); color:var(--fui-ink);
+    font-family:var(--fui-font); font-size:14px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--fui-brand); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ===== 布局：左侧 Fluent 导航 + 内容 ===== */
+  .app{display:flex; min-height:100vh}
+  .nav{
+    width:264px; flex:0 0 264px; position:sticky; top:0; align-self:flex-start;
+    height:100vh; overflow-y:auto; background:var(--fui-bg-2);
+    border-right:1px solid var(--fui-border-2); padding:16px 12px;
+  }
+  .nav .brand{display:flex; align-items:center; gap:10px; padding:8px 8px 16px}
+  .nav .brand .logo{
+    width:36px; height:36px; border-radius:8px; background:linear-gradient(135deg,var(--fui-teal),#0b3d49);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:18px;
+  }
+  .nav .brand .t{font-size:15px; font-weight:600; line-height:1.2}
+  .nav .brand .s{font-size:11px; color:var(--fui-ink-3)}
+  .nav .grp{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--fui-ink-3); margin:14px 8px 4px}
+  .nav a{
+    display:block; padding:7px 10px; border-radius:var(--fui-radius-sm); color:var(--fui-ink);
+    font-size:13.5px; margin:2px 0;
+  }
+  .nav a:hover{background:var(--fui-surface-hover); text-decoration:none}
+  .nav a.active{background:var(--fui-brand-bg); color:var(--fui-brand); font-weight:600}
+
+  .content{flex:1 1 auto; min-width:0; padding:0 0 80px}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 32px}
+
+  /* ===== Hero ===== */
+  .hero{
+    background:linear-gradient(135deg,#0f6cbd 0%,#0e7c86 55%,#0b3d49 100%);
+    color:#fff; padding:48px 0 40px; margin-bottom:28px;
+  }
+  .hero h1{font-size:38px; margin:0 0 6px; font-weight:700; letter-spacing:.5px}
+  .hero .en{font-size:14px; opacity:.82; letter-spacing:3px; text-transform:uppercase}
+  .hero .desc{margin-top:14px; max-width:760px; font-size:15px; opacity:.92}
+  .hero .tags{margin-top:20px; display:flex; flex-wrap:wrap; gap:8px}
+  .hero .tag{background:rgba(255,255,255,.16); padding:5px 12px; border-radius:999px; font-size:12.5px; border:1px solid rgba(255,255,255,.2)}
+  .hero .metagrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:24px}
+  .hero .metagrid .m{background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius:var(--fui-radius); padding:12px 14px}
+  .hero .metagrid .m b{display:block; font-size:10.5px; letter-spacing:.5px; opacity:.7; text-transform:uppercase}
+  .hero .metagrid .m span{font-size:15px; font-weight:600}
+
+  /* ===== Cards / Sections ===== */
+  section.card{
+    background:var(--fui-surface); border:1px solid var(--fui-border-2); border-radius:var(--fui-radius);
+    padding:24px 26px; margin:18px 0; box-shadow:var(--fui-shadow-2);
+  }
+  section.card > h2{
+    margin:0 0 4px; font-size:22px; display:flex; align-items:center; gap:10px;
+  }
+  section.card > h2 .num{
+    display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; flex:0 0 auto;
+    border-radius:6px; background:var(--fui-brand-bg); color:var(--fui-brand); font-size:14px; font-weight:700;
+  }
+  .lead{color:var(--fui-ink-2); margin:6px 0 14px}
+  h3{font-size:16px; color:var(--fui-teal); margin:22px 0 8px; border-left:3px solid var(--fui-teal); padding-left:10px}
+  h4{font-size:14px; margin:16px 0 6px; color:var(--fui-ink)}
+  p{margin:10px 0}
+  ul,ol{margin:8px 0; padding-left:22px}
+  li{margin:5px 0}
+
+  /* ===== Tables ===== */
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:13px; background:var(--fui-surface)}
+  th,td{border:1px solid var(--fui-border-2); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--fui-brand-bg); color:var(--fui-brand); font-weight:600}
+  tbody tr:nth-child(even){background:#fafcfe}
+  td code, p code, li code{
+    font-family:var(--fui-font-mono); background:#eef2f7; padding:1px 6px; border-radius:4px; font-size:12.5px; color:var(--fui-brand-pressed)
+  }
+  .val{font-family:var(--fui-font-mono); color:var(--fui-brand-pressed); font-weight:600}
+
+  /* ===== Badges ===== */
+  .badge{display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; margin:2px 4px 2px 0}
+  .b-blue{background:var(--fui-brand-bg); color:var(--fui-brand)}
+  .b-teal{background:var(--fui-teal-bg); color:var(--fui-teal)}
+  .b-green{background:var(--fui-green-bg); color:var(--fui-green)}
+  .b-red{background:var(--fui-red-bg); color:var(--fui-red)}
+  .b-orange{background:var(--fui-orange-bg); color:var(--fui-orange)}
+  .b-purple{background:var(--fui-purple-bg); color:var(--fui-purple)}
+
+  /* ===== Callouts (Fluent InfoBar) ===== */
+  .note{border-radius:var(--fui-radius-sm); padding:12px 14px; margin:14px 0; font-size:13.5px; border:1px solid; border-left-width:4px}
+  .note.tip{background:var(--fui-green-bg); border-color:#bfe3cd; color:#1f5c39; border-left-color:var(--fui-green)}
+  .note.warn{background:var(--fui-orange-bg); border-color:#ecd9a6; color:#7a5500; border-left-color:var(--fui-orange)}
+  .note.danger{background:var(--fui-red-bg); border-color:#f1c6c4; color:#8a2b28; border-left-color:var(--fui-red)}
+  .note.info{background:var(--fui-brand-bg); border-color:#bcdcf5; color:#0c3b5e; border-left-color:var(--fui-brand)}
+  .note b{display:block; margin-bottom:3px; font-weight:700}
+
+  /* ===== Code block ===== */
+  pre{
+    background:#1b1b1f; color:#e6e6e6; border-radius:var(--fui-radius-sm); padding:16px 18px;
+    overflow-x:auto; font-family:var(--fui-font-mono); font-size:12.5px; line-height:1.6; margin:12px 0;
+    border:1px solid #2d2d33;
+  }
+  pre .cm{color:#7f9c9f}      /* comment */
+  pre .kw{color:#569cd6}       /* keyword */
+  pre .st{color:#ce9178}       /* string */
+  pre .fn{color:#dcdcaa}       /* function */
+  pre .nm{color:#9cdcfe}       /* name/type */
+  pre .nu{color:#b5cea8}       /* number */
+  .codelabel{font-size:12px; color:var(--fui-ink-2); margin-top:14px; font-weight:600; display:flex; align-items:center; gap:8px}
+  .codelabel .path{font-family:var(--fui-font-mono); background:#eef2f7; padding:1px 8px; border-radius:4px; color:var(--fui-brand-pressed); font-weight:500}
+
+  /* ===== Flow (回合流程) ===== */
+  .flow{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; align-items:stretch}
+  .flow .step{flex:1 1 130px; background:#f4f8fb; border:1px solid var(--fui-border-2); border-radius:var(--fui-radius-sm); padding:10px 12px}
+  .flow .step .s{font-size:10.5px; color:var(--fui-brand); font-weight:700; letter-spacing:.5px}
+  .flow .step .t{font-weight:600; margin-top:2px; font-size:13px}
+  .flow .step .d{font-size:12px; color:var(--fui-ink-2); margin-top:3px}
+  .flow .arrow{flex:0 0 auto; display:flex; align-items:center; color:var(--fui-ink-3); font-size:16px}
+
+  /* ===== Layer grid ===== */
+  .layers{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:14px 0}
+  .layers .lvl{background:var(--fui-surface); border:1px solid var(--fui-border-2); border-radius:var(--fui-radius-sm); padding:12px; box-shadow:var(--fui-shadow-2)}
+  .layers .lvl .n{font-weight:700; color:var(--fui-brand); font-size:13px}
+  .layers .lvl .d{font-size:11.5px; color:var(--fui-ink-2); margin-top:4px}
+
+  /* ===== KPI pills ===== */
+  .kpis{display:flex; flex-wrap:wrap; gap:10px; margin:14px 0}
+  .kpi{background:var(--fui-brand-bg); color:var(--fui-brand); border-radius:999px; padding:6px 14px; font-size:13px; font-weight:600}
+
+  /* ===== Glossary ===== */
+  .gloss{display:grid; grid-template-columns:160px 1fr; gap:0; border:1px solid var(--fui-border-2); border-radius:var(--fui-radius-sm); overflow:hidden}
+  .gloss dt{background:#f4f8fb; padding:8px 12px; font-weight:700; color:var(--fui-teal); border-bottom:1px solid var(--fui-border-2)}
+  .gloss dd{margin:0; padding:8px 12px; border-bottom:1px solid var(--fui-border-2)}
+
+  .formula{background:#0f2a30; color:#d6f3f5; border-radius:var(--fui-radius-sm); padding:12px 16px; margin:12px 0; font-family:var(--fui-font-mono); font-size:12.5px; line-height:1.9; overflow-x:auto}
+  .formula .c{color:#7fd6dd}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:14px 0}
+  .stat{background:var(--fui-surface); border:1px solid var(--fui-border-2); border-radius:var(--fui-radius); padding:14px 16px; box-shadow:var(--fui-shadow-2)}
+  .stat .v{font-size:26px; font-weight:700; color:var(--fui-brand)}
+  .stat .l{font-size:12px; color:var(--fui-ink-2); margin-top:2px}
+
+  footer{text-align:center; color:var(--fui-ink-3); font-size:12.5px; padding:30px 0 0}
+
+  @media(max-width:880px){
+    .nav{display:none}
+    .wrap{padding:0 16px}
+    .hero h1{font-size:28px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ============ 左侧导航 ============ -->
+  <nav class="nav">
+    <div class="brand">
+      <div class="logo">绿</div>
+      <div>
+        <div class="t">第二绿洲</div>
+        <div class="s">全量游戏总结</div>
+      </div>
+    </div>
+    <div class="grp">速览</div>
+    <a href="#overview">01 · 项目概览</a>
+    <a href="#arch">02 · 技术架构</a>
+    <a href="#rules">03 · 规则体系</a>
+    <a href="#dataflow">04 · 核心数据流</a>
+    <div class="grp">代码架构（逐层 + 真实代码）</div>
+    <a href="#c-types">05 · Types 与常量</a>
+    <a href="#c-core">06 · Core 核心逻辑层</a>
+    <a href="#c-ai">07 · AI 决策层</a>
+    <a href="#c-store">08 · Store 适配层</a>
+    <a href="#c-render">09 · Render 渲染层</a>
+    <a href="#c-ui">10 · UI 界面层</a>
+    <a href="#c-net">11 · Net 联机层</a>
+    <a href="#c-audio">12 · Audio 音效层</a>
+    <a href="#c-server">13 · Server 服务端</a>
+    <a href="#c-app">14 · App 控制器</a>
+    <div class="grp">平衡与交付</div>
+    <a href="#balance">15 · 数值与平衡</a>
+    <a href="#variant">16 · v1.2 变体包</a>
+    <a href="#test">17 · 测试与质量</a>
+    <a href="#deploy">18 · 部署</a>
+    <a href="#appendix">19 · 附录</a>
+  </nav>
+
+  <!-- ============ 内容 ============ -->
+  <div class="content">
+    <header class="hero">
+      <div class="wrap">
+        <h1>《第二绿洲》</h1>
+        <div class="en">The Second Oasis · 全量游戏总结（Fluent UI 版）</div>
+        <div class="desc">
+          月球领土争夺 · 网页策略桌游 · 2~4 人对战。本总结在通读全部源码（117 个 <code style="color:#fff">.ts</code> 文件）与全部文档（计划书、变更清单、平衡报告、CHANGELOG 等）后生成，涵盖规则体系、逐层代码结构（含真实代码片段）、数值平衡、变体包、测试与部署。
+        </div>
+        <div class="tags">
+          <span class="tag">类型：网页策略桌游</span>
+          <span class="tag">人数：2 ~ 4 人</span>
+          <span class="tag">时长：约 15 ~ 30 分钟</span>
+          <span class="tag">当前版本：v1.0 / v1.2 变体已就绪</span>
+          <span class="tag">开发者：温睿（14 岁）单人独立开发</span>
+        </div>
+        <div class="metagrid">
+          <div class="m"><b>技术栈</b><span>TS + Vite + Canvas2D</span></div>
+          <div class="m"><b>源文件</b><span>117 个 .ts</span></div>
+          <div class="m"><b>测试</b><span>37 文件 / 291+ 用例</span></div>
+          <div class="m"><b>规则裁定</b><span>14 项（Q1–Q8 + C1–C6）</span></div>
+          <div class="m"><b>蒙特卡洛</b><span>1000 局 / 配置</span></div>
+          <div class="m"><b>类型检查</b><span>tsc --noEmit 零错误</span></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="wrap">
+
+      <!-- ============ 01 概览 ============ -->
+      <section class="card" id="overview">
+        <h2><span class="num">01</span>项目概览</h2>
+        <p class="lead">一句话定位与关键属性。</p>
+        <p>《第二绿洲》是一款面向 <b>2~4 人</b> 的 <b>网页策略桌游</b>。玩家分别扮演四个国家，围绕月球（公共领土）展开领土争夺。游戏以掷骰为核心随机源，融合 <b>稳健 / 激进</b> 策略选择、<b>连击开发</b> 的风险博弈，以及由 <b>抢夺</b> 升级而来的 <b>崩坏</b> 熔断机制。当公共领土被瓜分殆尽，私有领土最多者获胜。</p>
+        <div class="kpis">
+          <span class="kpi">掷骰驱动</span><span class="kpi">风险 / 收益博弈</span><span class="kpi">公共池衰减</span>
+          <span class="kpi">零和守恒</span><span class="kpi">回合制</span><span class="kpi">像素风太空殖民</span>
+        </div>
+        <h3>背景与主题</h3>
+        <p>地球资源枯竭后，人类将目光投向月球——代号“第二绿洲”。四个国家率先具备登月能力，意图在月球表面抢占尽可能多的领土。然而月球公共领土有限，争夺必然走向零和：当最后一块公共领土被分配完毕，谁在私人物业上积累最多，谁就掌握了新文明的主动权。基调：冷峻的太空殖民竞争 + 轻策略博弈；视觉上采用 <b>深空蓝绿 #0e7c86</b> + 月壤灰配色。</p>
+        <h3>项目定位与优先级</h3>
+        <ul>
+          <li><b>性质</b>：作品集展示项目，需交付完整可玩产品。</li>
+          <li><b>开发者</b>：单人独立开发，WorkBuddy 全程参与（写代码 / 设计数值 / 写文档 / 审查机制）。</li>
+          <li><b>开发优先级</b>：A 核心规则逻辑 → B 界面好看 → C 联机对战 → D AI 对手 → E 音效动画（当前五大优先级全部完成）。</li>
+        </ul>
+      </section>
+
+      <!-- ============ 02 架构 ============ -->
+      <section class="card" id="arch">
+        <h2><span class="num">02</span>技术架构</h2>
+        <p class="lead">分层架构：Core 层零第三方运行时依赖、不依赖渲染/UI/Net，可独立测试。</p>
+        <div class="layers">
+          <div class="lvl"><div class="n">Types</div><div class="d">全局类型定义（13 文件）</div></div>
+          <div class="lvl"><div class="n">Utils</div><div class="d">工具 + 随机源（4 文件）</div></div>
+          <div class="lvl"><div class="n">Core</div><div class="d">游戏核心逻辑（19 文件）</div></div>
+          <div class="lvl"><div class="n">AI</div><div class="d">AI 决策系统（11 文件）</div></div>
+          <div class="lvl"><div class="n">Store</div><div class="d">状态管理（4 文件）</div></div>
+          <div class="lvl"><div class="n">Render</div><div class="d">Canvas 渲染（13 文件）</div></div>
+          <div class="lvl"><div class="n">UI</div><div class="d">DOM 界面（11 文件）</div></div>
+          <div class="lvl"><div class="n">App</div><div class="d">应用控制（2 文件）</div></div>
+          <div class="lvl"><div class="n">Net</div><div class="d">WebSocket 联机（5 文件）</div></div>
+          <div class="lvl"><div class="n">Audio</div><div class="d">音频引擎（4 文件）</div></div>
+          <div class="lvl"><div class="n">Server</div><div class="d">服务端权威（6 文件）</div></div>
+          <div class="lvl"><div class="n">Config</div><div class="d">UI 常量（1 文件）</div></div>
+        </div>
+        <h3>关键技术选型</h3>
+        <table>
+          <thead><tr><th>层</th><th>选型</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>语言</td><td>TypeScript (strict 全开)</td><td>类型安全，<code>tsc --noEmit</code> 零错误</td></tr>
+            <tr><td>构建</td><td>Vite 5</td><td>极速 HMR</td></tr>
+            <tr><td>渲染</td><td>Canvas 2D + DOM</td><td>三层画布（背景/主层/FX）+ DOM UI 面板</td></tr>
+            <tr><td>状态</td><td>自建 EventEmitter Store</td><td>轻量，适配棋类游戏状态</td></tr>
+            <tr><td>测试</td><td>Vitest</td><td>291+ 测试，覆盖全部核心逻辑</td></tr>
+            <tr><td>联机</td><td>Node.js + WebSocket (ws)</td><td>服务端权威结算</td></tr>
+            <tr><td>音效</td><td>WebAudio 程序化合成</td><td>14 种音效预设，无需音频文件</td></tr>
+            <tr><td>随机</td><td>mulberry32 种子随机</td><td>联机种子同步、测试可复现</td></tr>
+          </tbody>
+        </table>
+        <h3>依赖关系摘要</h3>
+        <table>
+          <thead><tr><th>来源</th><th>依赖</th><th>约束</th></tr></thead>
+          <tbody>
+            <tr><td>Core/**</td><td>Types, Utils</td><td>零依赖 Render/UI/Net</td></tr>
+            <tr><td>AI/**</td><td>Types, Core(仅读), Utils</td><td>通过快照评估，不直接写入</td></tr>
+            <tr><td>Store/**</td><td>Types, Core(GameState)</td><td>包装 GameState，事件流</td></tr>
+            <tr><td>Render/**</td><td>Types, Store(ViewModel), UI(Theme)</td><td>读 BoardViewModel</td></tr>
+            <tr><td>UI/**</td><td>Store(GameStore 事件), Config</td><td>订阅事件</td></tr>
+            <tr><td>App/**</td><td>UI, Render, Store, Audio, Net</td><td>统一编排</td></tr>
+            <tr><td>Net/**</td><td>Types, Store(IGameStore), Core(Messages)</td><td>联网实现 IGameStore</td></tr>
+            <tr><td>Server/**</td><td>Core(GameState 权威), Net(Messages)</td><td>服务端权威结算</td></tr>
+          </tbody>
+        </table>
+        <div class="note info"><b>三大关键数据流</b>
+          <ul style="margin:6px 0 0">
+            <li><b>本地对局</b>：<code>AppController.Run() → InputGate → GameStore.PlayTurn() → GameState → AnimationCoordinator → Renderers + Audio</code></li>
+            <li><b>联机对局</b>：<code>AppController → NetworkGameStore → WebSocketClient → Server:GameRoom(GameState 权威) → 广播 → 各客户端</code></li>
+            <li><b>AI 对局</b>：<code>AIDirector.PlayForCurrentPlayer() → AIPlayer.DecideMode() → DecisionMaker → Evaluator + Simulator</code></li>
+            <li><b>渲染管线</b>：<code>LayeredCanvas(3层) → OasisBoardRenderer(主层) + StarfieldRenderer(背景) + DiceStage(FX层) + AnimationManager(全部层)</code></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ 03 规则体系 ============ -->
+      <section class="card" id="rules">
+        <h2><span class="num">03</span>规则体系（权威来源：计划书 v1.1）</h2>
+        <p class="lead">v1.1 是对 v1.0 的规则裁定与细化：将原 §15 待澄清的 8 项歧义（Q1~Q8）与实现中发现的 6 处逻辑冲突点（C1~C6）拍板为正式规则。</p>
+
+        <h3>核心数值表（§5）</h3>
+        <table>
+          <thead><tr><th>参数</th><th>符号</th><th>默认值</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>公共领土初始</td><td>—</td><td class="val">100</td><td>月球可被瓜分的总量</td></tr>
+            <tr><td>私有领土初始</td><td>—</td><td class="val">0</td><td>每人独立</td></tr>
+            <tr><td>稳健模式点数</td><td>—</td><td class="val">1 ~ 6</td><td>单骰</td></tr>
+            <tr><td>激进模式点数</td><td>n</td><td class="val">2 ~ 12</td><td>双骰之和；≤6 时倒扣</td></tr>
+            <tr><td>本回合应得领土</td><td>RawGain</td><td class="val">−12 ~ 12</td><td>激进倒扣时为负；不开发为 0</td></tr>
+            <tr><td>实际占领量</td><td>M</td><td class="val">RawGain × 倍率</td><td>可为负（倒扣）</td></tr>
+            <tr><td>抢夺阈值</td><td>m</td><td class="val">0（Q1）</td><td>公共 &lt; 0 即溢出触发抢夺</td></tr>
+            <tr><td>溢出量</td><td>m2</td><td class="val">(n×倍率) − 公共剩余</td><td>C1：溢出的是实际占领量 M</td></tr>
+            <tr><td>抢夺随机返还量</td><td>r</td><td class="val">0 &lt; r ≤ m2</td><td>抢得失败后回归公共的部分</td></tr>
+            <tr><td>发射成功阈值</td><td>—</td><td class="val">≥ 7</td><td>发射回合双骰之和</td></tr>
+            <tr><td>发射成功奖励</td><td>—</td><td class="val">+2</td><td>私有领土</td></tr>
+            <tr><td>崩坏系数</td><td>x</td><td class="val">初始 2，+1/次</td><td>每次崩坏后自增</td></tr>
+            <tr><td>开发倍率</td><td>—</td><td class="val">×1 / ×2 / ×3 / 清零</td><td>非对子 / 第1次 / 第2次 / 第3次</td></tr>
+          </tbody>
+        </table>
+
+        <h3>回合流程（§6）</h3>
+        <div class="flow">
+          <div class="step"><div class="s">PHASE 0</div><div class="t">发射回合</div><div class="d">仅第一轮；每人掷双骰 ≥7 方可发射</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="s">每轮开始</div><div class="t">选择模式</div><div class="d">稳健 / 激进 / 不开发</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="s">ACTION</div><div class="t">掷骰占领</div><div class="d">公共 − M，私有 + M</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="s">CHECK</div><div class="t">溢出判定</div><div class="d">公共 &lt; 0？首→抢夺 / 其后→崩坏</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="s">CHECK</div><div class="t">对子判定</div><div class="d">开发链 / 开发过度</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="s">END</div><div class="t">下一位</div><div class="d">公共 = 0 则终局</div></div>
+        </div>
+        <div class="note warn"><b>溢出路由（关键）</b>占领使公共 &lt; 0 即“溢出”，进入特殊机制：<b>本局首次溢出 → 触发抢夺</b>；<b>第 2 次及以后溢出 → 升级为崩坏</b>。即“抢夺只触发一次，其后皆崩坏”。</div>
+
+        <h3>三种模式（§7 / §8）</h3>
+        <table>
+          <thead><tr><th>模式</th><th>骰数</th><th>RawGain 计算</th><th>是否可能为对子</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge b-green">稳健 Steady</span></td><td>1 颗</td><td><code>= 骰值（1~6）</code></td><td>否（单骰无对子）</td></tr>
+            <tr><td><span class="badge b-orange">激进 Aggressive</span></td><td>2 颗</td><td>正常 <code>= 双骰和</code>；若和 <code>≤ 6</code>：<code>= −和</code>（倒扣）</td><td>是（两骰相同）</td></tr>
+            <tr><td><span class="badge b-blue">不开发 None</span></td><td>0 颗</td><td><code>= 0</code>（不掷骰）</td><td>否（未掷骰）</td></tr>
+          </tbody>
+        </table>
+        <div class="note danger"><b>C2 裁定 · 激进小对子</b>激进掷出 (1,1)=2、(2,2)=4、(3,3)=6 时，<b>既是对子又触发倒扣</b>。两机制独立结算：对子仍触发开发链（连击 +1，倍率作用于 RawGain），倒扣使 <code>RawGain = −和</code>（为负），倍率再作用于该负值。例：(1,1) → 连击 +1（首次对子 ×2）→ <code>M = −2 × 2 = −4</code>，私有 −4、公共 +4。</div>
+
+        <h3>开发链（§9）连击机制</h3>
+        <table>
+          <thead><tr><th>连续对子次数</th><th>触发</th><th>倍率</th><th>本回合 M</th></tr></thead>
+          <tbody>
+            <tr><td>0（非对子）</td><td>—</td><td>×1</td><td><code>M = RawGain × 1</code></td></tr>
+            <tr><td>第 1 次</td><td><b>开发</b></td><td><b>×2</b></td><td><code>M = RawGain × 2</code></td></tr>
+            <tr><td>第 2 次（连续）</td><td><b>大开发</b></td><td><b>×3</b></td><td><code>M = RawGain × 3</code></td></tr>
+            <tr><td>第 3 次（连续）</td><td><b>开发过度</b></td><td>清零</td><td>M 作废，私有清零 + 荒地</td></tr>
+          </tbody>
+        </table>
+        <div class="note tip"><b>Q4 / Q8</b>：倍率作用于<b>本回合应得领土 RawGain</b>（非私有总额翻倍）；<b>任何非对子结果都清零连击</b>，含“不开发”模式（不掷骰 = 未出对子 = 中断连击）。开发过度触发后：私有领土清零、标记“荒地”、状态置 NeedsRelaunch、连击归 0，本回合不执行占领，下回合需重新发射。</div>
+
+        <h3>抢夺（§10）</h3>
+        <p>当占领使公共 &lt; 0（<code>M &gt; 公共剩余</code>，Q1 裁定 <code>m = 0</code>）时，溢出部分 <code>m2</code> 触发<b>抢夺</b>，由发起者 <code>(p)</code> 发起。<b>仅本局首次溢出触发</b>；其后升级为崩坏。</p>
+        <div class="formula">
+<span class="c">// C3 方案 E：低者私有可能不足 m2，优先严格守恒</span>
+LowPrivate = 低者私有原值
+Transfer  = min(m2, LowPrivate)     <span class="c">// 实际可转移量</span>
+r         = min(r, Transfer)        <span class="c">// r 受 Transfer 约束</span>
+低者私有'  = 低者私有 − Transfer
+高者私有'  = 高者私有 + (Transfer − r)
+公共'      = 公共 + r               <span class="c">// r 回归公共池</span>
+<span class="c">// 守恒校验：−Transfer + (Transfer − r) + r = 0</span>
+        </div>
+        <div class="note tip"><b>要点</b>防守者 = 除发起者外当前私有最高者（并列取 ID 最小，确定性便于联机复现）。Q5：平手双方都重掷直至分高低。C6：抢夺裁决用<b>单骰 1~6</b>；加赛用<b>双骰 2~12</b>。</div>
+
+        <h3>崩坏（§11）</h3>
+        <div class="formula">
+<span class="c">// Q6 裁定：总量守恒目标 = x · m2</span>
+TotalTarget = x × m2
+PerCap     = floor((x × m2) / 4)    <span class="c">// 每位非发起者的随机损失上限</span>
+RandomLoss_i  = NextInt(0, PerCap)   <span class="c">// 非发起者独立随机损失（C4 clamp）</span>
+InitiatorLoss = TotalTarget − ΣOthers <span class="c">// 发起者承担剩余缺口</span>
+Public' = max(0, 公共 − x)          <span class="c">// C5：clamp 至 0，=0 立即终局</span>
+NextX   = x + 1                     <span class="c">// 系数自增</span>
+        </div>
+
+        <h3>发射（§12）与终局（§3）</h3>
+        <ul>
+          <li><b>发射</b>：首轮专属序章，掷双骰 ≥7 成功 +2；全员成功才进主循环；开发过度后需重新发射。</li>
+          <li><b>终局</b>：公共领土归零（=0）即终局，私有最高者胜；Q7 平局进入<b>加赛</b>：仅平手者掷双骰（2~12），高者胜，仍平手继续。</li>
+          <li><b>荒地边界</b>：若终局全员荒地（私有=0），则全员并列，仍进加赛决出唯一胜者。</li>
+        </ul>
+
+        <h3>14 项规则裁定总表（§15）</h3>
+        <table>
+          <thead><tr><th>#</th><th>原问题</th><th>最终裁定</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>抢夺阈值 m</td><td><code>m = 0</code>：占领使公共 &lt; 0 触发抢夺；公共恰好 = 0 = 终局（不触发抢夺）</td></tr>
+            <tr><td>Q2</td><td>记录物用途</td><td>= 1 公共 + 4 私有领土记录位（数值下限 0）</td></tr>
+            <tr><td>Q3</td><td>“不开发”关系</td><td>“不开发” = 完全不掷骰、不占领、无直接效果（独立第三模式 ≠ 稳健）</td></tr>
+            <tr><td>Q4</td><td>翻倍基数</td><td>= 本回合应得领土 RawGain 的倍率（非私有总额翻倍）</td></tr>
+            <tr><td>Q5</td><td>抢夺平手</td><td>平手双方都重掷，直至分出高低</td></tr>
+            <tr><td>Q6</td><td>崩坏随机分配</td><td>非发起者独立随机损失 [0, floor((x·m2)/4)]，发起者承担剩余，总量守恒 = x·m2</td></tr>
+            <tr><td>Q7</td><td>终局平局</td><td>加赛：仅平手者，双骰（2~12），高者胜；仍平手继续</td></tr>
+            <tr><td>Q8</td><td>开发链计数清零</td><td>任何非对子结果都清零，含“不开发”模式</td></tr>
+            <tr><td>C1</td><td>m2 基数</td><td><code>m2 = M − 公共剩余 = (RawGain × 倍率) − 公共剩余</code></td></tr>
+            <tr><td>C2</td><td>小对子倒扣</td><td>独立结算：对子触发开发链，倒扣使 RawGain 为负，倍率作用于负值</td></tr>
+            <tr><td>C3</td><td>抢夺低者不足</td><td>方案 E 守恒：Transfer=min(m2,低者私有)，r=min(r,Transfer)</td></tr>
+            <tr><td>C4</td><td>崩坏私有不足</td><td>clamp 至 0，缺口累加发起者；发起者亦不足则 IsConserved=false</td></tr>
+            <tr><td>C5</td><td>崩坏公共 &lt; 0</td><td>公共 = max(0, 公共 − x)；= 0 立即终局</td></tr>
+            <tr><td>C6</td><td>抢夺/加赛骰数</td><td>抢夺裁决用<b>单骰 1~6</b>；加赛用<b>双骰 2~12</b></td></tr>
+          </tbody>
+        </table>
+
+        <h3>术语表</h3>
+        <dl class="gloss">
+          <dt>公共领土</dt><dd>月球上所有玩家共享、可被瓜分的领土，初始 100，归零即终局。</dd>
+          <dt>私有领土</dt><dd>各玩家独立积累、决定胜负的最终数值，初始 0，永不为负。</dd>
+          <dt>RawGain</dt><dd>本回合应得领土：稳健=骰值；激进正常=双骰和、≤6 时为−和；不开发=0。</dd>
+          <dt>开发链</dt><dd>连续掷出对子触发的连击：第1次×2 / 第2次×3 / 第3次清零（开发过度）。</dd>
+          <dt>抢夺</dt><dd>首次占领溢出时，发起者与私有最高者裁决溢出量 m2（单骰，仅一次）。</dd>
+          <dt>崩坏</dt><dd>第二次及以后溢出触发的全局惩罚，系数 x 随次数递增，全员随机受损。</dd>
+          <dt>m2</dt><dd>溢出量 = M − 公共剩余 = (RawGain × 倍率) − 公共剩余（C1）。</dd>
+          <dt>r</dt><dd>抢夺中回归公共的随机损耗量，<code>0 &lt; r ≤ m2</code>（受 Transfer 约束）。</dd>
+          <dt>x</dt><dd>崩坏系数，初始 2，每次崩坏 +1，目标损失 = x·m2。</dd>
+          <dt>开发过度</dt><dd>连续 3 次对子触发，私有清零并标记荒地，需重新发射。</dd>
+          <dt>加赛</dt><dd>终局平局时，仅平手者掷双骰，高者胜；仍平手继续（Q7）。</dd>
+          <dt>不开发</dt><dd>第三种模式：完全不掷骰、不占领、无直接效果，但清零开发链连击（Q3/Q8）。</dd>
+        </dl>
+      </section>
+
+      <!-- ============ 04 数据流 ============ -->
+      <section class="card" id="dataflow">
+        <h2><span class="num">04</span>核心数据流：占领结算公式（§7.2）</h2>
+        <p class="lead">实际占领量 <code>M = RawGain × Multiplier</code>（Multiplier 来自开发链；倒扣时 RawGain 为负，M 也为负）。</p>
+        <div class="formula">
+<span class="c">// 情形 A：M ≤ 0（倒扣 / 不开发）→ 私有减少、公共回血，守恒，不溢出</span>
+Private' = max(0, Private − |M|)      <span class="c">// 私有 clamp 至 0</span>
+Public'  = Public + (Private − Private')  <span class="c">// 公共只加实际扣量，严格守恒</span>
+
+<span class="c">// 情形 B：M &gt; 0 且 M ≤ 公共剩余 → 正常占领</span>
+Public'  = Public − M
+Private' = Private + M
+
+<span class="c">// 情形 C：M &gt; 公共剩余 → 溢出（C1）</span>
+m2        = M − Public              <span class="c">// 溢出的是实际占领量 M</span>
+Public'   = 0
+Private'  = Private + Public        <span class="c">// 仅拿到公共剩余部分</span>
+IsOverflow = true                   <span class="c">// 剩余 m2 进入抢夺 / 崩坏</span>
+        </div>
+        <div class="note tip"><b>举例</b>公共剩 30，玩家激进掷 (6,6)=12 且第 1 次连续对子（×2）→ <code>M = 12 × 2 = 24</code>。若公共剩 10，则 <code>m2 = 24 − 10 = 14</code> 进入抢夺。×2 倍率会显著放大溢出概率。</div>
+      </section>
+
+      <!-- ============ 05 Types ============ -->
+      <section class="card" id="c-types">
+        <h2><span class="num">05</span>代码架构 · Types 与常量</h2>
+        <p class="lead">全局类型定义层（13 文件）+ 全局常量 + 配置工厂（含 v1.2 开关）。</p>
+        <div class="codelabel"><span class="path">src/Core/Constants.ts</span> 全局常量（节选）</div>
+<pre><span class="cm">/** 公共领土上限 / 初值 */</span>
+<span class="kw">export const</span> <span class="nm">MAX_PUBLIC_TERRITORY</span> = <span class="nu">100</span>;
+<span class="kw">export const</span> <span class="nm">INITIAL_PUBLIC_TERRITORY</span> = <span class="nu">100</span>;
+<span class="kw">export const</span> <span class="nm">INITIAL_PRIVATE_TERRITORY</span> = <span class="nu">0</span>;
+<span class="kw">export const</span> <span class="nm">ROBBERY_THRESHOLD_M</span> = <span class="nu">0</span>;          <span class="cm">// Q1</span>
+<span class="kw">export const</span> <span class="nm">LAUNCH_THRESHOLD</span> = <span class="nu">7</span>;              <span class="cm">// 发射双骰 ≥7</span>
+<span class="kw">export const</span> <span class="nm">LAUNCH_REWARD</span> = <span class="nu">2</span>;                <span class="cm">// 发射 +2</span>
+<span class="kw">export const</span> <span class="nm">COLLAPSE_INITIAL_X</span> = <span class="nu">2</span>;            <span class="cm">// 崩坏系数初值</span>
+<span class="kw">export const</span> <span class="nm">DEV_CHAIN_OVERLOAD_THRESHOLD</span> = <span class="nu">3</span>;   <span class="cm">// 第3次对子过度</span>
+<span class="kw">export const</span> <span class="nm">MAX_PLAYERS</span> = <span class="nu">4</span>; <span class="kw">export const</span> <span class="nm">MIN_PLAYERS</span> = <span class="nu">2</span>;
+
+<span class="cm">// v1.2 默认参数</span>
+<span class="kw">export const</span> <span class="nm">DEFAULT_LEADER_TAX_BASE</span> = <span class="nu">1</span>;
+<span class="kw">export const</span> <span class="nm">DEFAULT_SPRINT_THRESHOLD</span> = <span class="nu">30</span>;
+<span class="kw">export const</span> <span class="nm">DEFAULT_SPRINT_BONUS</span> = <span class="nu">2</span>;</pre>
+        <div class="codelabel"><span class="path">src/Types/GameConfig.ts</span> 配置接口与两套工厂</div>
+<pre><span class="kw">export interface</span> <span class="nm">GameConfig</span> {
+  <span class="kw">readonly</span> PlayerCount: <span class="nu">2</span> | <span class="nu">3</span> | <span class="nu">4</span>;
+  <span class="kw">readonly</span> Seed: number;                 <span class="cm">// 联机时服务器下发</span>
+  <span class="kw">readonly</span> InitialPublic: number;        <span class="cm">// 默认 100</span>
+  <span class="kw">readonly</span> RobberyThreshold: number;     <span class="cm">// 0</span>
+  <span class="kw">readonly</span> LaunchThreshold: number;      <span class="cm">// 7</span>
+  <span class="kw">readonly</span> CollapseInitialX: number;     <span class="cm">// 2</span>
+  <span class="cm">// —— v1.2 开关 ——</span>
+  <span class="kw">readonly</span> EnableLeaderTax: boolean;
+  <span class="kw">readonly</span> LeaderTaxBase: number;
+  <span class="kw">readonly</span> EnableRotatingStart: boolean;
+  <span class="kw">readonly</span> EnableScarcitySprint: boolean;
+  <span class="kw">readonly</span> SprintThreshold: number;
+  <span class="kw">readonly</span> SprintBonus: number;
+  <span class="kw">readonly</span> EnableRevengeRaid: boolean;
+  <span class="kw">readonly</span> RevengeSuccessThreshold: number;
+  <span class="kw">readonly</span> RevengeFailureCost: number;
+}
+
+<span class="cm">// v1.1 兼容：所有新开关 false</span>
+<span class="kw">export function</span> <span class="fn">CreateDefaultConfig</span>(PlayerCount, Seed): GameConfig { ... }
+<span class="cm">// v1.2 标准变体：开 LeaderTax / RotatingStart / ScarcitySprint，关 RevengeRaid</span>
+<span class="kw">export function</span> <span class="fn">CreateVariantConfig</span>(PlayerCount, Seed): GameConfig {
+  <span class="kw">return</span> { ...<span class="fn">CreateDefaultConfig</span>(PlayerCount, Seed),
+    EnableLeaderTax: <span class="kw">true</span>, LeaderTaxBase: <span class="nu">1</span>,
+    EnableRotatingStart: <span class="kw">true</span>,
+    EnableScarcitySprint: <span class="kw">true</span>, SprintThreshold: <span class="nu">30</span>, SprintBonus: <span class="nu">2</span> };
+}</pre>
+        <div class="note info">Types 层还包含 <code>Player</code>（PlayerId / PlayerStatus: Active|NeedsRelaunch|Eliminated / PlayerSnapshot）、<code>Territory</code>（TerritorySnapshot）、<code>Dice</code>（DiceMode 枚举 + DiceRollResult）、<code>DevChain</code>、<code>Robbery</code>、<code>Collapse</code>、<code>Launch</code>、<code>Turn</code>、<code>GamePhase</code>（12 个阶段枚举）、<code>GameResult</code>、<code>AI</code>（AIDifficulty 0~5 / AIPersonality 四维 / PersonalityArchetype）等。</div>
+      </section>
+
+      <!-- ============ 06 Core ============ -->
+      <section class="card" id="c-core">
+        <h2><span class="num">06</span>代码架构 · Core 核心逻辑层</h2>
+        <p class="lead">纯逻辑、零第三方运行时依赖。8 模块 + 错误系统 + 蒙特卡洛。这是规则正确性的核心。</p>
+
+        <h3>DiceRoller — 掷骰（含倒扣、None 不耗随机源）</h3>
+        <div class="codelabel"><span class="path">src/Core/DiceRoller.ts</span></div>
+<pre><span class="kw">private</span> <span class="fn">RollAggressive</span>(): DiceRollResult {
+  <span class="kw">const</span> D1 = <span class="kw">this</span>._Random.<span class="fn">NextDie</span>();
+  <span class="kw">const</span> D2 = <span class="kw">this</span>._Random.<span class="fn">NextDie</span>();
+  <span class="kw">const</span> Sum = D1 + D2;
+  <span class="kw">const</span> IsDouble = D1 === D2;
+  <span class="kw">const</span> IsDeducted = Sum &lt;= <span class="nu">6</span>;             <span class="cm">// 激进 ≤6 倒扣</span>
+  <span class="kw">const</span> RawGain = IsDeducted ? -Sum : Sum;
+  <span class="kw">return</span> { Mode: DiceMode.Aggressive, Dice: [D1, D2], Sum,
+           IsDouble, IsDeducted, RawGain };
+}
+<span class="kw">private</span> <span class="fn">RollNone</span>(): DiceRollResult {       <span class="cm">// 不开发：不消耗随机源</span>
+  <span class="kw">return</span> { Mode: DiceMode.None, Dice: [], Sum: <span class="nu">0</span>,
+           IsDouble: <span class="kw">false</span>, IsDeducted: <span class="kw">false</span>, RawGain: <span class="nu">0</span> };
+}</pre>
+
+        <h3>DevChain — 开发链状态机（Q4/Q8/C2）</h3>
+        <div class="codelabel"><span class="path">src/Core/DevChain.ts</span> Advance()</div>
+<pre><span class="fn">Advance</span>(IsDouble: boolean, Mode: DiceMode): DevChainOutcome {
+  <span class="kw">if</span> (Mode === DiceMode.None) { <span class="cm">// Q8：不开发 = 清零连击</span>
+    <span class="kw">this</span>._ConsecutiveDoubles = <span class="nu">0</span>;
+    <span class="kw">return</span> { Multiplier: DevMultiplier.None, IsOverload: <span class="kw">false</span>, NewConsecutiveDoubles: <span class="nu">0</span> };
+  }
+  <span class="kw">if</span> (!IsDouble) { <span class="cm">// 非对子（含 Steady 单骰）→ 清零</span>
+    <span class="kw">this</span>._ConsecutiveDoubles = <span class="nu">0</span>; <span class="kw">return</span> { Multiplier: DevMultiplier.None, ... };
+  }
+  <span class="kw">this</span>._ConsecutiveDoubles += <span class="nu">1</span>;
+  <span class="kw">if</span> (<span class="kw">this</span>._ConsecutiveDoubles &gt;= DEV_CHAIN_OVERLOAD_THRESHOLD) { <span class="cm">// 第3次 → 过度</span>
+    <span class="kw">this</span>._ConsecutiveDoubles = <span class="nu">0</span>;
+    <span class="kw">return</span> { Multiplier: DevMultiplier.None, IsOverload: <span class="kw">true</span>, NewConsecutiveDoubles: <span class="nu">0</span> };
+  }
+  <span class="kw">if</span> (<span class="kw">this</span>._ConsecutiveDoubles === <span class="nu">1</span>) <span class="kw">return</span> { Multiplier: DevMultiplier.Dev, ... };   <span class="cm">// ×2</span>
+  <span class="kw">return</span> { Multiplier: DevMultiplier.BigDev, ... };                                       <span class="cm">// ×3</span>
+}</pre>
+
+        <h3>Occupation — 占领结算（纯计算，含倒扣守恒、溢出 m2）</h3>
+        <div class="codelabel"><span class="path">src/Core/Occupation.ts</span> Calculate()</div>
+<pre><span class="fn">Calculate</span>(PublicBefore, PrivateBefore, RawGain, Multiplier, SprintBonus=<span class="nu">0</span>) {
+  <span class="kw">const</span> AdjustedRawGain = RawGain &gt; <span class="nu">0</span> ? RawGain + SprintBonus : RawGain;
+  <span class="kw">const</span> M = AdjustedRawGain * Multiplier;     <span class="cm">// M = RawGain × 倍率（Q4）</span>
+  <span class="kw">if</span> (M &lt;= <span class="nu">0</span>) <span class="kw">return</span> { ...<span class="fn">CalculateDeduction</span>(PublicBefore, PrivateBefore, M) };
+  <span class="kw">return</span> { ...<span class="fn">CalculateClaim</span>(PublicBefore, M) };
+}
+<span class="cm">// 正常占领：M ≤ 公共 → 公共−M，私有+M，不溢出</span>
+<span class="cm">// 溢出：m2 = M − PublicBefore；公共=0，私有+PublicBefore，IsOverflow=true</span></pre>
+
+        <h3>Robbery — 抢夺裁决（单骰、平手重掷、方案 E 守恒）</h3>
+        <div class="codelabel"><span class="path">src/Core/Robbery.ts</span> Resolve() 关键段</div>
+<pre><span class="kw">const</span> RawR = <span class="kw">this</span>._Random.<span class="fn">NextInt</span>(<span class="nu">1</span>, OverflowM2);   <span class="cm">// 0 &lt; r ≤ m2</span>
+<span class="kw">const</span> LoserPrivate = InitiatorWon ? DefenderSnapshot.PrivateTerritory
+                                      : InitiatorSnapshot.PrivateTerritory;
+<span class="kw">const</span> Transfer = Math.<span class="fn">min</span>(OverflowM2, LoserPrivate);  <span class="cm">// C3 方案 E</span>
+<span class="kw">const</span> R = Math.<span class="fn">min</span>(RawR, Transfer);
+<span class="cm">// 低者 −Transfer（用 0−Transfer 避免负零）；高者 +(Transfer−r)；公共 +r</span></pre>
+
+        <h3>Collapse — 崩坏结算（Q6 随机分配、C4/C5 边界）</h3>
+        <div class="codelabel"><span class="path">src/Core/Collapse.ts</span> Resolve()</div>
+<pre><span class="kw">const</span> CurrentX = <span class="kw">this</span>._X;
+<span class="kw">const</span> TotalTarget = CurrentX * OverflowM2;          <span class="cm">// 守恒目标</span>
+<span class="kw">const</span> PerCap = Math.<span class="fn">floor</span>(TotalTarget / <span class="nu">4</span>);        <span class="cm">// 每位非发起者上限</span>
+<span class="kw">for</span> (<span class="kw">const</span> P <span class="kw">of</span> Players) {                       <span class="cm">// 按 ID 升序，保证联机一致</span>
+  <span class="kw">if</span> (P.Id === InitiatorId) <span class="kw">continue</span>;
+  <span class="kw">const</span> RandomLoss = <span class="kw">this</span>._Random.<span class="fn">NextInt</span>(<span class="nu">0</span>, PerCap);
+  <span class="kw">const</span> ActualLoss = Math.<span class="fn">min</span>(RandomLoss, P.PrivateTerritory); <span class="cm">// C4 clamp</span>
+  OthersSum += ActualLoss;
+}
+<span class="kw">const</span> InitiatorActualLoss = Math.<span class="fn">min</span>(TotalTarget - OthersSum, InitiatorPrivate);
+<span class="kw">const</span> PublicDelta = -Math.<span class="fn">min</span>(CurrentX, PublicBefore);  <span class="cm">// C5 clamp 至 0</span>
+<span class="kw">this</span>._X = CurrentX + <span class="nu">1</span>;                            <span class="cm">// 系数自增</span></pre>
+
+        <h3>GameEnd — 终局判定 + 加赛（Q1/Q7）</h3>
+        <div class="codelabel"><span class="path">src/Core/GameEnd.ts</span></div>
+<pre><span class="kw">static</span> <span class="fn">IsGameOver</span>(PublicTerritory): boolean { <span class="kw">return</span> PublicTerritory &lt;= <span class="nu">0</span>; }
+<span class="kw">static</span> <span class="fn">ComputeWinners</span>(Players): Winner[] { <span class="cm">// 私有最高者；多人为平手</span> }
+<span class="fn">RunTiebreakerRound</span>(Participants): TiebreakerRound { <span class="cm">// 仅平手者掷双骰，高者胜</span> }</pre>
+
+        <h3>GameState — 核心状态机（编排全部模块）</h3>
+        <div class="codelabel"><span class="path">src/Core/GameState.ts</span> 关键结构</div>
+<pre><span class="kw">export class</span> <span class="nm">GameState</span> {
+  <span class="kw">private readonly</span> _Random: IRandomSource;   <span class="cm">// SeededRandom(seed)</span>
+  <span class="kw">private readonly</span> _DevChains: Map&lt;PlayerId, DevChain&gt;;
+  <span class="kw">private</span> _Phase: GamePhase;
+  <span class="kw">private</span> _PublicTerritory: number;
+  <span class="kw">private</span> _RobberyTriggeredCount: number;
+  <span class="kw">private</span> _RoundIndex: number;
+  <span class="kw">private</span> _FirstPlayerIndex: PlayerId;
+  <span class="cm">// Phase / CurrentPlayer / IsOver / Result / Snapshot / RobberyTriggeredCount / CollapseX</span>
+  <span class="fn">Start</span>(): <span class="kw">void</span>;                       <span class="cm">// → LaunchPhase</span>
+  <span class="fn">AttemptLaunch</span>(): LaunchResult;
+  <span class="fn">PlayTurn</span>(Mode: DiceMode): TurnResult;     <span class="cm">// 掷骰→开发链→占领→溢出(抢/崩)→公敌税→推进</span>
+  <span class="fn">RunTiebreaker</span>(): TiebreakerRound;
+  <span class="cm">// 私有：ResolveRobbery / ResolveCollapse / ApplyLeaderTax / AdvanceToNextPlayer</span>
+}</pre>
+        <div class="note tip"><b>关键不变量</b>None 模式不消耗随机源；非发起者按 PlayerId 升序处理保证联机随机序列一致；用 <code>0 - X</code> 避免 <code>Object.is(-0, 0) === false</code> 的负零问题；抢夺仅触发一次（<code>_RobberyTriggeredCount === 0</code> 判定），其后为崩坏。</div>
+
+        <h3>MonteCarloSimulation — 平衡性仿真</h3>
+        <div class="codelabel"><span class="path">src/Core/MonteCarloSimulation.ts</span></div>
+<pre><span class="kw">function</span> <span class="fn">SimulateOneGame</span>(PlayerCount, Seed, Mode=Aggressive): GameStats {
+  <span class="kw">const</span> State = <span class="kw">new</span> <span class="nm">GameState</span>(<span class="fn">CreateDefaultConfig</span>(PlayerCount, Seed));
+  State.<span class="fn">Start</span>();
+  <span class="kw">while</span> (!State.IsOver &amp;&amp; Turns &lt; <span class="nu">2000</span>) {
+    <span class="kw">if</span> (Phase === LaunchPhase) State.<span class="fn">AttemptLaunch</span>();
+    <span class="kw">else if</span> (Phase === SelectMode) { <span class="kw">const</span> T = State.<span class="fn">PlayTurn</span>(Mode); ... }
+    <span class="kw">else if</span> (Phase === Tiebreaker) State.<span class="fn">RunTiebreaker</span>();
+  }
+  <span class="kw">return</span> { Turns, WinnerId, RobberyTriggered, CollapseCount, OverloadCount, ... };
+}
+<span class="cm">// RunSimulation(PlayerCount, 1000, Mode, BaseSeed) → 汇总统计</span>
+<span class="cm">// 用法：npx tsx src/Core/MonteCarloSimulation.ts</span></pre>
+        <div class="note info"><b>错误系统</b>：<code>GameError</code> 基类（带 Code），9 个子类（InvalidDiceMode / InvalidTurnPhase / RobberyThreshold / DevChainOverflow / LaunchNotCompleted / PlayerCount 等）。Core 层抛异常，绝不吞异常。</div>
+      </section>
+
+      <!-- ============ 07 AI ============ -->
+      <section class="card" id="c-ai">
+        <h2><span class="num">07</span>代码架构 · AI 决策层</h2>
+        <p class="lead">6 档难易度（0~5）、四维性格模型、敌意记忆、混合决策引擎 + 决策可解释日志。</p>
+        <table>
+          <thead><tr><th>文件</th><th>职责</th></tr></thead>
+          <tbody>
+            <tr><td>AIConfig.ts</td><td>AIPlayerConfig / AIGameConfig，CreateAIGameConfig(seed) / IsAIPlayer(id)</td></tr>
+            <tr><td>Difficulty.ts</td><td>DifficultyProfile(10 参数) / GetDifficultyProfile / GetDifficultyLabel</td></tr>
+            <tr><td>Personality.ts</td><td>CreatePersonality(seed) / 性格原型（4 维：攻击性/风险/记忆/合作）</td></tr>
+            <tr><td>Memory.ts</td><td>GrudgeRegistry 敌意登记簿，GRUDGE_SCORES 预置分数</td></tr>
+            <tr><td>Evaluator.ts</td><td>EvaluateMode(ctx) 静态局面评估，概率加权三种模式</td></tr>
+            <tr><td>Simulator.ts</td><td>SimulateFirstMode(ctx) 浅层前瞻模拟（1 步 lookahead）</td></tr>
+            <tr><td>DecisionMaker.ts</td><td>DecideMode(ctx) 混合决策：评估 + 模拟 + 性格矫正</td></tr>
+            <tr><td>TransparentLog.ts</td><td>ModeDecisionTrace / LaunchDecisionTrace / TiebreakerDecisionTrace</td></tr>
+            <tr><td>AIPlayer.ts</td><td>DecideMode / DecideLaunch / DecideTiebreaker / ObserveTurn</td></tr>
+            <tr><td>AIDirector.ts</td><td>总控：PlayForCurrentPlayer / ObserveTurn，CreateNullAIDirector()</td></tr>
+          </tbody>
+        </table>
+        <div class="codelabel"><span class="path">src/AI/DecisionMaker.ts</span> DecideMode() 混合评分</div>
+<pre><span class="kw">const</span> Evaluations = ALL_MODES.<span class="fn">map</span>(M =&gt; <span class="fn">EvaluateMode</span>(ctx, M));   <span class="cm">// 启发式</span>
+<span class="cm">// 高难启用 Simulator 前瞻（LookaheadDepth &gt; 0）</span>
+<span class="kw">const</span> SimulatedScores = ...<span class="fn">SimulateFirstMode</span>(...);
+<span class="cm">// 归一化合并：Base = Heuristic*(1−SimWeight) + Sim*SimWeight</span>
+<span class="cm">// 性格微调：Aggressiveness → 激进 +3；RiskTolerance → 抑制过载惩罚</span>
+<span class="cm">// 难度噪声：Rookie 最大，Master 为 0</span>
+<span class="cm">// 选最高分；输出 ModeDecisionTrace 透明日志（含 FinalScore 与 Reason）</span></pre>
+        <div class="note tip"><b>AI 系统亮点</b>：6 档难度从随机乱来到精英博弈；四维性格（攻击性/风险偏好/记忆性/合作性）独立生成；敌意记忆让 AI“记仇”被抢后报复；每步决策附 <code>ModeDecisionTrace</code> 人类可读理由（如“选择激进：期望收益最高，开发过度风险 12%，性格激进”）。</div>
+      </section>
+
+      <!-- ============ 08 Store ============ -->
+      <section class="card" id="c-store">
+        <h2><span class="num">08</span>代码架构 · Store 适配层</h2>
+        <p class="lead">响应式适配层：包装 GameState，把 pull-based 命令-查询转成事件流（PhaseChange / Snapshot / Launch / Turn / Tiebreaker / GameOver / RoundChange）。</p>
+        <div class="codelabel"><span class="path">src/Store/GameStore.ts</span> 事件桥接</div>
+<pre><span class="kw">export interface</span> <span class="nm">IGameStore</span> {
+  <span class="kw">readonly</span> Phase: GamePhase; <span class="kw">readonly</span> CurrentPlayer: PlayerId;
+  <span class="kw">readonly</span> IsOver: boolean; <span class="kw">readonly</span> Result: GameResult | <span class="kw">null</span>;
+  <span class="kw">readonly</span> Snapshot: TerritorySnapshot;
+  <span class="fn">Start</span>(): <span class="kw">void</span>; <span class="fn">AttemptLaunch</span>(): LaunchResult;
+  <span class="fn">PlayTurn</span>(Mode): TurnResult; <span class="fn">RunTiebreaker</span>(): TiebreakerRound;
+  <span class="cm">// Async 版本供联机/动画 await；On&lt;K&gt;(Type, Fn) 订阅</span>
+}
+<span class="kw">export class</span> <span class="nm">GameStore</span> <span class="kw">extends</span> <span class="nm">EventEmitter</span>&lt;StoreEvents&gt; <span class="kw">implements</span> IGameStore {
+  <span class="fn">PlayTurn</span>(Mode) {
+    <span class="kw">const</span> Result = <span class="kw">this</span>._State.<span class="fn">PlayTurn</span>(Mode);
+    <span class="kw">this</span>._<span class="fn">EmitPhase</span>(); <span class="kw">this</span>._<span class="fn">EmitRound</span>();
+    <span class="kw">this</span>.<span class="fn">Emit</span>(<span class="st">'Turn'</span>, { Result, Snapshot });
+    <span class="kw">this</span>.<span class="fn">Emit</span>(<span class="st">'Snapshot'</span>, <span class="kw">this</span>._State.Snapshot);
+    <span class="kw">if</span> (<span class="kw">this</span>._State.IsOver) <span class="kw">this</span>.<span class="fn">Emit</span>(<span class="st">'GameOver'</span>, <span class="kw">this</span>._State.Result!);
+    <span class="kw">return</span> Result;
+  }
+}</pre>
+        <div class="note info">同层还有 <code>EventEmitter&lt;E&gt;</code>（泛型事件发射器）、<code>ViewModel</code>（PlayerViewModel / BoardViewModel 数据→视图转换）、<code>PlayerPalette</code>（阵营色工具：Color / ColorDim / LabelShort / Codename / ComboLabel / FACTION_CODENAMES）。<code>NetworkGameStore</code> 实现同一 <code>IGameStore</code> 接口，通过 WebSocket 同步服务端权威状态。</div>
+      </section>
+
+      <!-- ============ 09 Render ============ -->
+      <section class="card" id="c-render">
+        <h2><span class="num">09</span>代码架构 · Render 渲染层</h2>
+        <p class="lead">三层 Canvas 架构（背景/主层/FX）+ 程序化动画系统。像素风、关闭反锯齿、DPR 自适应。</p>
+        <table>
+          <thead><tr><th>文件</th><th>职责</th></tr></thead>
+          <tbody>
+            <tr><td>RenderContext.ts</td><td>Canvas 渲染上下文封装，DPR 处理，反锯齿关闭</td></tr>
+            <tr><td>StarfieldRenderer.ts</td><td>程序化粒子星空背景（视差）</td></tr>
+            <tr><td>MenuViewportRenderer.ts</td><td>主菜单旋转月球视口</td></tr>
+            <tr><td>LayeredCanvas.ts</td><td>三层 Canvas 管理器（背景/主层/FX）</td></tr>
+            <tr><td>TerritoryMap.ts</td><td>持久领土归属地图（10×10=100 格，解决领土重排 BUG）</td></tr>
+            <tr><td>OasisBoardRenderer.ts</td><td>月球作战沙盘，SetSource/Freeze/Unfreeze/ApplyEvent/Render</td></tr>
+            <tr><td>DiceStage.ts</td><td>像素骰子翻滚动画</td></tr>
+            <tr><td>Animation/**</td><td>Manager + Coordinator + NumberPop/SeatPulse/ChainBadge 动画</td></tr>
+          </tbody>
+        </table>
+        <div class="codelabel"><span class="path">src/Render/TerritoryMap.ts</span> 持久归属模型（解决“每回合变一次”BUG）</div>
+<pre><span class="cm">// 一张 Int8Array(100) 记录每格归属（玩家/公共/荒地），跨回合保留。</span>
+<span class="cm">// 三条领土变更规则：</span>
+<span class="cm">// 1. 变公共：从外向内扣除（移除最远离角落的格）</span>
+<span class="cm">// 2. 变荒地：随机挑选若干格变荒地（崩坏/开发过度）</span>
+<span class="cm">// 3. 被抢：被抢格尽量靠近抢夺者（胜者）领土</span>
+<span class="cm">// 生长（占领获得）始终从玩家角落向外一圈圈扩散。</span>
+<span class="kw">export const</span> GRID = <span class="nu">10</span>; <span class="kw">export const</span> CELL_COUNT = GRID * GRID; <span class="cm">// 100</span>
+<span class="kw">export const</span> OWNER_PUBLIC = -<span class="nu">1</span>; <span class="kw">export const</span> OWNER_WASTELAND = -<span class="nu">2</span>;</pre>
+        <div class="note tip"><b>设计亮点</b>旧实现每帧用数量反推 100 格归属，数量一变就整盘重算 → 已生长格子被随机重分配。改为持久归属 + <code>Sync()</code> 最小增删校正，杜绝重排。采用“先全局释放超额 → 再全局就近认领”两遍法，配合全池认领杜绝计数饿死。</div>
+      </section>
+
+      <!-- ============ 10 UI ============ -->
+      <section class="card" id="c-ui">
+        <h2><span class="num">10</span>代码架构 · UI 界面层</h2>
+        <p class="lead">像素风 CSS 主题（1153 行 CSS-in-TS 注入）+ 声明式 DOM 工具 + 响应式布局（768px 断点）+ 组件。</p>
+        <div class="codelabel"><span class="path">src/UI/Theme.ts</span> 配色规范（Canvas 常量 + CSS 变量，双主题）</div>
+<pre><span class="kw">export const</span> <span class="nm">COLORS</span> = {
+  SpaceBg: <span class="st">'#0B0E14'</span>, SpaceSurface: <span class="st">'#161B22'</span>, SpacePanel: <span class="st">'#1C2230'</span>,
+  Oasis: <span class="st">'#00F5D4'</span>,                 <span class="cm">// 绿洲（公共领土）</span>
+  FactionBlue: <span class="st">'#3B82F6'</span>, FactionPurple: <span class="st">'#8B5CF6'</span>,
+  FactionOrange: <span class="st">'#F59E0B'</span>, FactionPink: <span class="st">'#EC4899'</span>,  <span class="cm">// 4 阵营色</span>
+  Safe: <span class="st">'#10B981'</span>, Hazard: <span class="st">'#FF6B00'</span>, Alert: <span class="st">'#EF4444'</span>, Pass: <span class="st">'#6B7280'</span>,
+};
+<span class="kw">export const</span> <span class="nm">FACTION_COLORS</span> = [<span class="st">'#3B82F6'</span>,<span class="st">'#8B5CF6'</span>,<span class="st">'#F59E0B'</span>,<span class="st">'#EC4899'</span>];
+<span class="cm">// CSS_VARIABLES：data-theme="dark"(默认) / data-theme="light" 双主题</span></pre>
+        <table>
+          <thead><tr><th>模块</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>Dom.ts</td><td>El(tag,props,children) 声明式 DOM 创建，On/Clear/ToggleClass/Qs/Qsa</td></tr>
+            <tr><td>StyleInjector.ts</td><td>InjectGlobalStyles() 全局 CSS 注入（1153 行）</td></tr>
+            <tr><td>Layout/{Breakpoints,LayoutManager}</td><td>LayoutMode / DetectLayoutMode(screenWidth)</td></tr>
+            <tr><td>Anim/Tween.ts</td><td>TweenNumber rAF ease-out-cubic 数值过渡</td></tr>
+            <tr><td>Components/MainMenu</td><td>飞船控制台主菜单：人数/SEED/玩家配置/AI 开关</td></tr>
+            <tr><td>Components/MultiplayerLobby</td><td>联机大厅：创建/加入/观战/离开</td></tr>
+            <tr><td>Components/GameOverScreen</td><td>终局界面：胜负 + 再来一局</td></tr>
+            <tr><td>Components/GameStageView</td><td>游戏舞台：阶段切换/回合公告/行动日志/席位闪烁</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ============ 11 Net ============ -->
+      <section class="card" id="c-net">
+        <h2><span class="num">11</span>代码架构 · Net 联机层</h2>
+        <p class="lead">消息协议（11 种错误码 + 完整 Client/Server 联合类型）+ WebSocket 客户端（心跳/重连）+ 大厅 + NetworkGameStore。</p>
+        <div class="codelabel"><span class="path">src/Net/Messages.ts</span> 协议摘要</div>
+<pre><span class="cm">// 错误码（11 种）</span>
+<span class="kw">type</span> ErrorCode = <span class="st">'ROOM_NOT_FOUND'</span> | <span class="st">'ROOM_FULL'</span> | <span class="st">'GAME_IN_PROGRESS'</span>
+  | <span class="st">'NICKNAME_TAKEN'</span> | <span class="st">'NOT_HOST'</span> | <span class="st">'NOT_YOUR_TURN'</span>
+  | <span class="st">'INVALID_DICE_MODE'</span> | <span class="st">'GAME_NOT_STARTED'</span> | <span class="st">'GAME_ALREADY_STARTED'</span>
+  | <span class="st">'PLAYER_NOT_READY'</span> | <span class="st">'SERVER_ERROR'</span>;
+
+<span class="cm">// 客户端消息（9 种）：CREATE_ROOM / JOIN_ROOM / LEAVE_ROOM /</span>
+<span class="cm">//   START_GAME / PLAY_TURN / ATTEMPT_LAUNCH / RUN_TIEBREAKER /</span>
+<span class="cm">//   SPECTATE_ROOM / HEARTBEAT</span>
+<span class="cm">// 服务端消息（15 种）：ROOM_CREATED / PLAYER_JOINED / GAME_STARTING /</span>
+<span class="cm">//   TURN_RESULT / LAUNCH_RESULT / TIEBREAKER_RESULT / GAME_OVER /</span>
+<span class="cm">//   PLAYER_DISCONNECTED / SPECTATOR_* / ERROR / HEARTBEAT_ACK ...</span>
+<span class="kw">export const</span> ClientMsg = { <span class="fn">CreateRoom</span>, <span class="fn">JoinRoom</span>, <span class="fn">LeaveRoom</span>, <span class="fn">StartGame</span>,
+  <span class="fn">PlayTurn</span>, <span class="fn">AttemptLaunch</span>, <span class="fn">RunTiebreaker</span>, <span class="fn">SpectateRoom</span>, <span class="fn">Heartbeat</span> };</pre>
+        <div class="note info">WebSocketClient：ConnectionState 枚举、Connect/Send/SendAndWait/On/Once/Disconnect，心跳保活 + 自动重连。LobbyClient：CreateRoom/JoinRoom/StartGame/SpectateRoom/LeaveRoom。NetworkGameStore 实现 IGameStore，通过 WebSocket 同步服务端权威状态。</div>
+      </section>
+
+      <!-- ============ 12 Audio ============ -->
+      <section class="card" id="c-audio">
+        <h2><span class="num">12</span>代码架构 · Audio 音效层</h2>
+        <p class="lead">WebAudio 程序化合成，零外部音频文件，14 种音效预设，可访问性设置（静音/减弱动效）localStorage 持久化。</p>
+        <div class="codelabel"><span class="path">src/Audio/SoundMap.ts</span> 14 种预设</div>
+<pre><span class="kw">export type</span> SoundPreset =
+  | <span class="st">'DiceRoll'</span> | <span class="st">'DiceSettle'</span> | <span class="st">'OccupyUp'</span> | <span class="st">'OccupyDown'</span>
+  | <span class="st">'ChainX2'</span> | <span class="st">'ChainX3'</span> | <span class="st">'ChainBreak'</span>
+  | <span class="st">'RobberyStart'</span> | <span class="st">'RobberyWin'</span> | <span class="st">'RobberyLose'</span>
+  | <span class="st">'Collapse'</span> | <span class="st">'LaunchSuccess'</span> | <span class="st">'LaunchFail'</span> | <span class="st">'GameOver'</span>;</pre>
+        <div class="note tip"><b>外部资源建议</b>（可选采样）：<code>ChainBreak</code>（玻璃碎裂感）、<code>Collapse</code>（低频轰鸣）、<code>GameOver</code>（太空尾音）。架构：AccessibilitySettings 单例 + AudioEngine（首次交互后 Resume AudioContext）+ SoundMap（预设→合成器参数）+ Synthesizer（程序化合成）。</div>
+      </section>
+
+      <!-- ============ 13 Server ============ -->
+      <section class="card" id="c-server">
+        <h2><span class="num">13</span>代码架构 · Server 服务端</h2>
+        <p class="lead">Node.js + ws，服务端权威结算（GameRoom 运行权威 GameState），防作弊；房间管理 + AI 断线接管。</p>
+        <div class="codelabel"><span class="path">server/GameRoom.ts</span> 权威房间（节选）</div>
+<pre><span class="kw">export class</span> <span class="nm">GameRoom</span> {
+  <span class="fn">StartGame</span>(HostPlayerId) {                 <span class="cm">// 生成共享种子，广播 GAME_STARTING</span>
+    <span class="kw">const</span> Seed = Math.<span class="fn">floor</span>(Math.random() * <span class="nu">2147483647</span>);
+    <span class="kw">this</span>._Store = <span class="kw">new</span> <span class="nm">GameStore</span>(<span class="fn">CreateDefaultConfig</span>(count, Seed));
+    <span class="kw">this</span>._Store.<span class="fn">Start</span>();
+    <span class="kw">this</span>.<span class="fn">Broadcast</span>({ type: <span class="st">'GAME_STARTING'</span>, payload: { seed, playerOrder, players } });
+  }
+  <span class="fn">HandlePlayTurn</span>(PlayerId, Mode) {        <span class="cm">// 验证 Phase/当前玩家/模式合法性</span>
+    <span class="kw">const</span> Result = <span class="kw">this</span>._Store.<span class="fn">PlayTurn</span>(Mode);
+    <span class="kw">this</span>.<span class="fn">Broadcast</span>({ type: <span class="st">'TURN_RESULT'</span>, payload: { turnResult, snapshot, ... } });
+    <span class="kw">if</span> (<span class="kw">this</span>._Store.IsOver) <span class="kw">this</span>._<span class="fn">HandleGameOver</span>(Result);
+    <span class="kw">else</span> <span class="kw">this</span>._<span class="fn">ScheduleAIAdvanceIfNeeded</span>();
+  }
+  <span class="fn">MarkPlayerDisconnected</span>(Ws) { Player.IsAI = <span class="kw">true</span>; <span class="kw">this</span>.<span class="fn">Broadcast</span>(PLAYER_DISCONNECTED); }
+}</pre>
+        <div class="note info">同层：Types.ts（服务端类型导入）、RoomManager.ts（房间 CRUD + 过期清理）、WebSocketServer.ts（默认端口 <b>9528</b> 消息路由）、AIController.ts（断线玩家 AI 接管，IAIController 接口）、index.ts（入口）。默认端口 9528。</div>
+      </section>
+
+      <!-- ============ 14 App ============ -->
+      <section class="card" id="c-app">
+        <h2><span class="num">14</span>代码架构 · App 控制器</h2>
+        <p class="lead">总控制器：async 主循环 + Phase 路由，统一编排 InputGate / GameStore / AnimationCoordinator / Renderers / Audio / Net / AI。</p>
+        <div class="codelabel"><span class="path">src/App/AppController.ts</span> 主循环（节选）</div>
+<pre><span class="kw">async</span> <span class="fn">Run</span>(): Promise&lt;<span class="kw">void</span>&gt; {              <span class="cm">// 外层：菜单→对局→终局→返回</span>
+  <span class="kw">while</span> (<span class="kw">true</span>) {
+    <span class="kw">const</span> Action = <span class="kw">await</span> <span class="kw">this</span>._<span class="fn">ShowMenuAndWait</span>();
+    <span class="kw">if</span> (Action.Kind === <span class="st">'Local'</span>) <span class="kw">await</span> <span class="kw">this</span>._<span class="fn">PlayGame</span>(Action.Config);
+    <span class="kw">else</span> <span class="kw">await</span> <span class="kw">this</span>._<span class="fn">PlayMultiplayer</span>();
+  }
+}
+<span class="kw">private async</span> <span class="fn">_PlayGame</span>(Config) {     <span class="cm">// 单局</span>
+  <span class="kw">const</span> Store = <span class="kw">new</span> <span class="nm">GameStore</span>(<span class="fn">CreateVariantConfig</span>(...));
+  <span class="cm">// 本地才创建 AIDirector；联机不创建（避免 AI 向服务端发决策）</span>
+  <span class="kw">while</span> (!Store.IsOver) {
+    <span class="kw">if</span> (Phase === LaunchPhase) <span class="kw">await</span> <span class="kw">this</span>._<span class="fn">HandleLaunch</span>(...);
+    <span class="kw">else if</span> (Phase === SelectMode) <span class="kw">await</span> <span class="kw">this</span>._<span class="fn">HandleSelectMode</span>(...);
+    <span class="kw">else if</span> (Phase === Tiebreaker) <span class="kw">await</span> <span class="kw">this</span>._<span class="fn">HandleTiebreaker</span>(...);
+  }
+  <span class="kw">this</span>._<span class="fn">ShowGameOver</span>(Store.Result!);
+}</pre>
+        <div class="note tip"><b>编排铁律</b>：状态先推进（Store.PlayTurn 同步），后回放（日志/动画读不可变 Result）。本地热座每次玩家切换显示过渡幕；支持急速模式（跳过全部动画）、FPS 显示、设置面板（静音/减少动效/字号/CRT 开关，localStorage 持久化）。InputGate 输入门控（动画锁）处理键盘快捷键免鼠标操作。</div>
+      </section>
+
+      <!-- ============ 15 平衡 ============ -->
+      <section class="card" id="balance">
+        <h2><span class="num">15</span>数值与平衡（蒙特卡洛模拟 1000 局 / 配置，激进模式）</h2>
+        <p class="lead">数据为“全员激进”的极端情景（最高冲突频率）；实际混合稳健/不开发频率更低，对局更可控。</p>
+        <h3>三种模式期望收益（§2.1 平衡报告）</h3>
+        <table>
+          <thead><tr><th>模式</th><th>每回合期望 RawGain</th><th>有效期望产出（含开发链）</th><th>主要风险</th></tr></thead>
+          <tbody>
+            <tr><td>稳健 Steady</td><td class="val">3.50</td><td class="val">3.50</td><td>无风险，无爆发</td></tr>
+            <tr><td>激进（无脑连博）</td><td class="val">3.11</td><td class="val">≈ 3.11</td><td>约 1/36 概率开发过度</td></tr>
+            <tr><td>激进（最优链管理）</td><td class="val">3.55</td><td class="val">3.55</td><td>过载可规避</td></tr>
+            <tr><td>不开发 None</td><td class="val">0</td><td class="val">0</td><td>机会成本高，可避险</td></tr>
+          </tbody>
+        </table>
+        <div class="note tip">激进“会停手”时比稳健略优（约 +1.5%），无脑激进略亏。三种模式数值合格：稳健是基准，激进奖励链管理，None 是战术暂停。</div>
+
+        <h3>对局实测（§16.2）</h3>
+        <table>
+          <thead><tr><th>指标</th><th>2 人局</th><th>3 人局</th><th>4 人局</th></tr></thead>
+          <tbody>
+            <tr><td>平均回合数</td><td class="val">32.4</td><td class="val">34.5</td><td class="val">37.7</td></tr>
+            <tr><td>回合区间（min~max）</td><td>10 ~ 88</td><td>13 ~ 89</td><td>14 ~ 92</td></tr>
+            <tr><td>各方胜率</td><td>53.3% / 46.7%</td><td>35.7% / 33.3% / 31.0%</td><td>27.9% / 26.3% / 23.9% / 21.9%</td></tr>
+            <tr><td>抢夺触发率</td><td>89.9%</td><td>87.9%</td><td>88.4%</td></tr>
+            <tr><td>崩坏触发率</td><td>84.3%</td><td>82.6%</td><td>82.5%</td></tr>
+            <tr><td>平均崩坏次数 / 局</td><td class="val">1.69</td><td class="val">1.65</td><td class="val">1.65</td></tr>
+            <tr><td>开发过度触发率</td><td>7.8%</td><td>7.4%</td><td>8.1%</td></tr>
+            <tr><td>终局最高私有（均值）</td><td class="val">62.8</td><td class="val">52.0</td><td class="val">45.2</td></tr>
+            <tr><td>终局私有总和（均值）</td><td class="val">91.1</td><td class="val">95.3</td><td class="val">99.7</td></tr>
+          </tbody>
+        </table>
+        <div class="note tip"><b>数据解读</b>
+          <ul style="margin:6px 0 0">
+            <li><b>对局时长合理</b>：2~4 人局平均 32~38 回合（约 15~30 分钟），回合上限 ~90 说明极端慢局罕见，无死循环。</li>
+            <li><b>先手优势可控</b>：2 人局先手 +6.6pp，3/4 人局落差 ≤6pp，无需额外补偿（但 v1.2 顺位轮换进一步平滑）。</li>
+            <li><b>特殊机制高频</b>：抢夺 ~89%、崩坏 ~83%，印证“后段加速”设计意图。</li>
+            <li><b>开发过度低频</b>：~8%，符合“高风险见好就收”。</li>
+            <li><b>守恒验证</b>：终局私有总和均值 91~100，与公共初值 100 吻合（其余为 r 回流/倒扣残留），总量守恒良好。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ 16 变体 ============ -->
+      <section class="card" id="variant">
+        <h2><span class="num">16</span>v1.2 变体包（可选启用，已实现）</h2>
+        <p class="lead">基于计划书 v1.1 提出的 4 个可选优化机制，通过 GameConfig 开关隔离，关闭后逻辑等价于 v1.1。标准变体（CreateVariantConfig）默认开启前三项。</p>
+        <div class="layers">
+          <div class="lvl"><div class="n"><span class="badge b-green">G-001</span> 公敌税</div><div class="d">每轮结束对唯一领先者征税 1 点回流公共，削弱龟缩、给落后者追赶窗口。并列最高免税。</div></div>
+          <div class="lvl"><div class="n"><span class="badge b-green">G-002</span> 顺位轮换</div><div class="d">每轮首位玩家按 RoundIndex % PlayerCount 轮换，消除永久先手优势。</div></div>
+          <div class="lvl"><div class="n"><span class="badge b-green">G-003</span> 枯竭冲刺</div><div class="d">公共 ≤30 时正向 RawGain 额外 +2（先加 Bonus 再乘倍率），加速终局。</div></div>
+          <div class="lvl"><div class="n"><span class="badge b-purple">G-004</span> 复仇突袭</div><div class="d">被抢/崩坏受害者获令牌，消耗可掠夺目标或失败自损。默认关闭（B 优先级扩展）。</div></div>
+        </div>
+        <div class="formula">
+<span class="c">// 公敌税</span>
+Leader = argmax(Private_i); Tax = min(LeaderTaxBase, Leader.Private)
+Private_Leader' = max(0, Private_Leader - Tax); Public' = Public + (Private_Leader - Private_Leader')
+<span class="c">// 枯竭冲刺（仅正向 RawGain 且公共 ≤ 阈值）</span>
+RawGain' = (RawGain + SprintBonus) × Multiplier
+<span class="c">// 复仇突袭（掷 1 骰 ≥4 成功，夺取 Die-2；否则自损 1 到公共）</span>
+        </div>
+        <div class="note warn"><b>已知遗留</b>复仇突袭目标选择 UI 当前为自动选私有最高者；公敌税 Scale、复仇自定义参数等高级配置尚未暴露到 UI；建议下一轮跑蒙特卡洛对比 v1.1 与 v1.2 标准变体。</div>
+        <h3>调参表（平衡报告 §5，假设值）</h3>
+        <table>
+          <thead><tr><th>变量</th><th>当前值</th><th>建议范围</th><th>调参理由</th></tr></thead>
+          <tbody>
+            <tr><td>公共初值 InitialPublic</td><td class="val">100</td><td>80–120</td><td>80 压到 ~20 回合；120 更长</td></tr>
+            <tr><td>发射阈值 LaunchThreshold</td><td class="val">7</td><td>6–8</td><td>7 成功率 58%；6 为 75%</td></tr>
+            <tr><td>崩坏系数初值</td><td class="val">2</td><td>1–3</td><td>x=1 温和，x=3 刺激</td></tr>
+            <tr><td>激进倒扣阈值</td><td class="val">≤6</td><td>≤5</td><td>≤5 使激进期望升到 ~4.78</td></tr>
+            <tr><td>公敌税基础</td><td>—</td><td>1–2</td><td>每轮 1 点整局追回 8–16 点</td></tr>
+            <tr><td>冲刺阈值/奖励</td><td>—</td><td>20–40 / 1–3</td><td>30 ≈ 最后 6–10 回合</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ============ 17 测试 ============ -->
+      <section class="card" id="test">
+        <h2><span class="num">17</span>测试与质量</h2>
+        <p class="lead">37 测试文件 / 291+ 测试用例全部通过；tsc --noEmit 类型检查零错误；Core 层全覆盖。</p>
+        <div class="stat-grid">
+          <div class="stat"><div class="v">115+</div><div class="l">A 优先级单元测试（计划书口径）</div></div>
+          <div class="stat"><div class="v">37</div><div class="l">测试文件</div></div>
+          <div class="stat"><div class="v">291+</div><div class="l">测试用例</div></div>
+          <div class="stat"><div class="v">0</div><div class="l">tsc --noEmit 错误</div></div>
+        </div>
+        <h3>测试覆盖范围</h3>
+        <table>
+          <thead><tr><th>层</th><th>测试文件</th></tr></thead>
+          <tbody>
+            <tr><td>Core</td><td>DiceRoller / DevChain / Occupation / Robbery / Collapse / Launch / GameEnd / GameState / MonteCarloSimulation（9 文件，含集成对局）</td></tr>
+            <tr><td>Utils</td><td>Clamp / IRandomSource（确定性）</td></tr>
+            <tr><td>Store</td><td>EventEmitter / ViewModel / PlayerPalette / GameStore</td></tr>
+            <tr><td>Render</td><td>TerritoryMap / AnimationManager / NumberPop / SeatPulse / ChainBadge / AnimationCoordinator（6 文件）</td></tr>
+            <tr><td>AI</td><td>AIConfig / Difficulty / Personality / Memory / Evaluator / Simulator / DecisionMaker / TransparentLog / AIPlayer / AIDirector（10 文件）</td></tr>
+            <tr><td>Audio</td><td>AccessibilitySettings / Synthesizer / AudioEngine</td></tr>
+            <tr><td>App</td><td>InputGate</td></tr>
+          </tbody>
+        </table>
+        <div class="note info"><b>质量底线</b>：单局首次加载 &lt; 3 秒；动画稳定 60fps；移动端不卡顿；核心逻辑测试覆盖 100% 关键路径；数值平衡有蒙特卡洛脚本验证。测试就近放置（Foo.ts → Foo.test.ts）。</div>
+      </section>
+
+      <!-- ============ 18 部署 ============ -->
+      <section class="card" id="deploy">
+        <h2><span class="num">18</span>部署</h2>
+        <p class="lead">一键脚本 + 命令行 + GitHub Pages 自动部署。</p>
+        <h3>命令行</h3>
+<pre><span class="kw">npm</span> install          <span class="cm"># 安装依赖（npm 已锁定）</span>
+<span class="kw">npm</span> run dev          <span class="cm"># 开发模式（Vite HMR）</span>
+<span class="kw">npm</span> run typecheck    <span class="cm"># tsc --noEmit</span>
+<span class="kw">npm</span> test             <span class="cm"># vitest run</span>
+<span class="kw">npm</span> run build        <span class="cm"># tsc + vite build</span>
+<span class="kw">npm</span> run server       <span class="cm"># 启动 WebSocket 服务器（端口 9528）</span>
+<span class="kw">npm</span> run dev:full     <span class="cm"># 客户端 + 服务端并发</span></pre>
+        <h3>GitHub Pages 部署</h3>
+        <ul>
+          <li><code>build:gh</code>：<code>tsc --noEmit && vite build --base=/the-second-oasis/</code></li>
+          <li><code>.github/workflows/deploy.yml</code>：push 到 main 触发，构建后复制 <code>404.html</code> 作为 SPA fallback</li>
+          <li>本地验证：<code>npm run build:gh</code> → <code>npm run preview:gh</code></li>
+        </ul>
+        <div class="note tip"><b>环境要求</b>：Node.js ≥ 18；包管理器 npm。<b>依赖</b>：devDependencies 仅 typescript / vite / vitest / ws / tsx / concurrently / @types/ws。运行时零第三方依赖（Core 层）。</div>
+      </section>
+
+      <!-- ============ 19 附录 ============ -->
+      <section class="card" id="appendix">
+        <h2><span class="num">19</span>附录 · 文件统计与关键标识符</h2>
+        <h3>按层文件统计（README 口径）</h3>
+        <table>
+          <thead><tr><th>层级</th><th>源文件</th><th>测试文件</th></tr></thead>
+          <tbody>
+            <tr><td>Types</td><td>13</td><td>—</td></tr>
+            <tr><td>Utils</td><td>4</td><td>2</td></tr>
+            <tr><td>Core</td><td>19</td><td>9</td></tr>
+            <tr><td>AI</td><td>11</td><td>10</td></tr>
+            <tr><td>Store</td><td>4</td><td>4</td></tr>
+            <tr><td>Render</td><td>13</td><td>6</td></tr>
+            <tr><td>UI</td><td>11</td><td>—</td></tr>
+            <tr><td>App</td><td>2</td><td>1</td></tr>
+            <tr><td>Net</td><td>5</td><td>—</td></tr>
+            <tr><td>Audio</td><td>4</td><td>3</td></tr>
+            <tr><td>Server</td><td>6</td><td>—</td></tr>
+            <tr><td>Config</td><td>1</td><td>—</td></tr>
+            <tr><td><b>总计</b></td><td><b>93</b></td><td><b>35</b></td></tr>
+          </tbody>
+        </table>
+        <div class="note info"><code>docs/code-index.xml</code> 记录全部 117 个 .ts 文件的关键变量/类/函数定义位置、文件作用、数据流与依赖关系，专为节省 Token 扫描设计；查具体代码可直接定位该 XML 的 <code>&lt;hotkeys&gt;</code> 部分。</div>
+        <h3>高频引用关键标识符</h3>
+        <table>
+          <thead><tr><th>标识符</th><th>类型</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>GameState.Phase</td><td>GamePhase(enum)</td><td>12 个阶段状态机</td></tr>
+            <tr><td>GameState.CurrentPlayer</td><td>number(0..3)</td><td>当前行动玩家索引</td></tr>
+            <tr><td>GameState.Snapshot</td><td>TerritorySnapshot</td><td>只读领土快照</td></tr>
+            <tr><td>GameStore.StoreEvents</td><td>PhaseChange|Snapshot|Launch|Turn|Tiebreaker|GameOver</td><td>全部商店事件</td></tr>
+            <tr><td>PlayerSnapshot.PrivateTerritory</td><td>number</td><td>私有领土数</td></tr>
+            <tr><td>PlayerSnapshot.ConsecutiveDoubles</td><td>number</td><td>连续对子计数</td></tr>
+            <tr><td>DiceRollResult.Sum / IsDouble / IsDeducted / RawGain</td><td>number/bool</td><td>掷骰结果</td></tr>
+            <tr><td>COLORS / FACTION_COLORS</td><td>src/UI/Theme.ts</td><td>配色常量 / 4 阵营色</td></tr>
+            <tr><td>TerritoryMap</td><td>src/Render/TerritoryMap.ts:69</td><td>持久归属地图，GRID=10</td></tr>
+          </tbody>
+        </table>
+        <h3>文档资产清单（已通读）</h3>
+        <ul>
+          <li><code>docs/第二绿洲_游戏计划书_1.1.html</code> — 规则权威来源（16 章，含 14 项裁定 + 平衡实测）</li>
+          <li><code>docs/第二绿洲_玩法平衡优化建议.html</code> — 游戏设计师审阅版，4 个可选机制 + 调参表</li>
+          <li><code>docs/v1.2核心逻辑变更报告.html</code> — 变体包实现详情（G-001~004 + AI-001~006）</li>
+          <li><code>docs/第二绿洲_玩法与AI变更清单.xml</code> — 变更项设计文档（DesignPillars + 调参）</li>
+          <li><code>docs/A核心逻辑完成报告.html</code> / <code>docs/code-index.xml</code> / <code>docs/第二绿洲_网站文件树规划.md</code> / <code>docs/GitHubPages部署教程.md</code></li>
+          <li><code>AI了解/</code>：CodeBuddy代码规范.md / 个人.md / 项目提示词.md / 游戏计划书.html（v1.0）</li>
+          <li><code>README.md</code> / <code>CHANGELOG.md</code></li>
+        </ul>
+        <div class="note danger"><b>规范铁律（来自 CodeBuddy代码规范.md）</b>核心逻辑零 Bug 优先于一切；职责单一；可回溯。Core 层严禁依赖 Render/UI/Net；禁止用 any 绕过类型检查；禁止 Core 层吞异常；注释解释“为什么”而非“是什么”；交付全文件而非片段。</div>
+      </section>
+
+      <footer>
+        《第二绿洲》The Second Oasis · 全量游戏总结（Fluent UI 版）<br>
+        基于通读全部源码（117 个 .ts）与全部文档生成 · 数据来源：计划书 v1.1 §16.2 蒙特卡洛实测 + 平衡报告 §2.1<br>
+        生成于 2026-07-26
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 滚动高亮当前章节（Fluent 导航 active 态）
+  const links = Array.from(document.querySelectorAll('.nav a'));
+  const sections = links.map(a => document.querySelector(a.getAttribute('href')));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = '#' + e.target.id;
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === id));
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => s && obs.observe(s));
+</script>
+</body>
+</html>

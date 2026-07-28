@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《第二绿洲》v1.2 核心逻辑变更报告</title>
+  <style>
+    :root {
+      --bg: #0b1215;
+      --panel: #111b1f;
+      --panel-2: #17262b;
+      --text: #e6f0f2;
+      --muted: #8aa0a6;
+      --accent: #0e7c86;
+      --accent-2: #2bb673;
+      --alert: #d97941;
+      --border: #1e3238;
+    }
+    body {
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1, h2, h3 { color: var(--accent-2); }
+    h1 { border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+    h2 { margin-top: 2.5rem; border-left: 4px solid var(--accent); padding-left: 0.75rem; }
+    h3 { margin-top: 1.5rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      background: var(--panel);
+    }
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--panel-2); color: var(--accent-2); }
+    code {
+      font-family: 'Consolas', 'Monaco', monospace;
+      background: rgba(14, 124, 134, 0.15);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      color: #7ee7f0;
+    }
+    .file { color: #7ee7f0; font-weight: bold; }
+    .add { color: var(--accent-2); }
+    .change { color: var(--alert); }
+    .note {
+      background: var(--panel);
+      border-left: 4px solid var(--accent);
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .warning {
+      background: rgba(217, 121, 65, 0.12);
+      border-left: 4px solid var(--alert);
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    ul { margin: 0.5rem 0; }
+    li { margin: 0.35rem 0; }
+  </style>
+</head>
+<body>
+  <h1>《第二绿洲》v1.2 核心逻辑变更报告</h1>
+  <p><strong>来源：</strong><code>docs\第二绿洲_玩法与AI变更清单.xml</code></p>
+  <p><strong>范围：</strong>Core 层规则、Types 接口、AI 评估、Store/UI 最小适配</p>
+  <p><strong>验证：</strong><code>npx tsc --noEmit</code> 零错误；<code>npx vitest run</code> 37 文件 / 291 测试全部通过</p>
+
+  <h2>一、变更清单逐项对照</h2>
+
+  <h3>A 优先级 — 玩法规则</h3>
+  <table>
+    <tr>
+      <th style="width: 8%">编号</th>
+      <th style="width: 20%">变更项</th>
+      <th style="width: 28%">改动位置</th>
+      <th style="width: 24%">改动原因</th>
+      <th style="width: 20%">预期效果</th>
+    </tr>
+    <tr>
+      <td><code>G-001</code></td>
+      <td>公敌税 Leader Tax</td>
+      <td>
+        <span class="file">src/Core/GameState.ts</span><br>
+        新增 <code>ApplyLeaderTax()</code>、<code>_RoundIndex</code> / <code>_FirstPlayerIndex</code><br>
+        <span class="file">src/Types/Turn.ts</span><br>
+        新增 <code>LeaderTaxRecord</code><br>
+        <span class="file">src/Types/GameConfig.ts</span><br>
+        新增 <code>EnableLeaderTax</code> / <code>LeaderTaxBase</code><br>
+        <span class="file">src/Core/Constants.ts</span><br>
+        新增 <code>DEFAULT_LEADER_TAX_BASE</code>
+      </td>
+      <td>防止领先者龟缩保胜；每轮结束对唯一最高私有者征税，税额回流公共池，维持零和。</td>
+      <td>领先者每轮固定损失 1 点私有，公共池延长，落后者有额外追赶回合；并列最高时免税。</td>
+    </tr>
+    <tr>
+      <td><code>G-002</code></td>
+      <td>顺位轮换 Rotating Start</td>
+      <td>
+        <span class="file">src/Core/GameState.ts</span><br>
+        <code>AdvanceToNextPlayer()</code> 仅在 <code>SelectMode</code> 主循环中更新轮次与首位玩家<br>
+        <span class="file">src/Types/Turn.ts</span><br>
+        新增 <code>RoundIndex</code> / <code>FirstPlayerIndex</code><br>
+        <span class="file">src/Store/GameStore.ts</span><br>
+        新增 <code>RoundChange</code> 事件
+      </td>
+      <td>消除永久先手优势；每轮起始玩家按 <code>RoundIndex % PlayerCount</code> 轮换。</td>
+      <td>2/3/4 人局中每位玩家均摊先手红利；发射阶段与加赛不受轮换影响。</td>
+    </tr>
+    <tr>
+      <td><code>G-003</code></td>
+      <td>枯竭冲刺 Scarcity Sprint</td>
+      <td>
+        <span class="file">src/Core/Occupation.ts</span><br>
+        <code>Calculate()</code> 新增 <code>SprintBonus</code> 参数<br>
+        <span class="file">src/Core/GameState.ts</span><br>
+        新增 <code>CalculateSprintBonus()</code>，仅在 <code>RawGain &gt; 0</code> 且公共 ≤ 阈值时生效<br>
+        <span class="file">src/Types/Turn.ts</span><br>
+        新增 <code>SprintBonus</code> 字段
+      </td>
+      <td>公共池末期增加正收益激励，避免终局拖沓；倒扣与 None 模式不享受，防止负面收益被放大。</td>
+      <td>公共 ≤30 时正向 RawGain 额外 +2，受开发链倍率放大；终局节奏加快。</td>
+    </tr>
+  </table>
+
+  <h3>A 优先级 — 数据接口与配置</h3>
+  <table>
+    <tr>
+      <th style="width: 8%">编号</th>
+      <th style="width: 20%">变更项</th>
+      <th style="width: 28%">改动位置</th>
+      <th style="width: 24%">改动原因</th>
+      <th style="width: 20%">预期效果</th>
+    </tr>
+    <tr>
+      <td><code>Data-002</code></td>
+      <td>回合历史扩展</td>
+      <td>
+        <span class="file">src/Types/Turn.ts</span><br>
+        <code>TurnResult</code> 新增 <code>RoundIndex</code> / <code>FirstPlayerIndex</code> / <code>LeaderTax</code> / <code>SprintBonus</code>
+      </td>
+      <td>回放、日志、UI 需要展示轮次、先手、税、冲刺奖励。</td>
+      <td>UI 可显示当前轮次与先手、公敌税明细、冲刺提示。</td>
+    </tr>
+    <tr>
+      <td><code>Data-004</code></td>
+      <td>GameConfig 扩展</td>
+      <td>
+        <span class="file">src/Types/GameConfig.ts</span><br>
+        新增 9 个开关/参数字段<br>
+        <span class="file">src/Core/Constants.ts</span><br>
+        新增 5 个默认值常量
+      </td>
+      <td>所有新机制通过配置开关隔离，保证向后兼容与可配置。</td>
+      <td>关闭所有开关后逻辑等价于 v1.1；标准变体可一键启用。</td>
+    </tr>
+    <tr>
+      <td><code>Cfg-001</code></td>
+      <td>标准变体包</td>
+      <td>
+        <span class="file">src/Types/GameConfig.ts</span><br>
+        新增 <code>CreateVariantConfig()</code><br>
+        <span class="file">src/App/AppController.ts</span><br>
+        默认对局改用 <code>CreateVariantConfig</code>
+      </td>
+      <td>提供 v1.2 推荐体验，同时保留 v1.1 兼容入口。</td>
+      <td>新玩家默认体验标准变体；旧存档/测试可继续用 <code>CreateDefaultConfig</code>。</td>
+    </tr>
+  </table>
+
+  <h3>B 优先级 — 复仇突袭（已实现，默认关闭）</h3>
+  <div class="warning">
+    <strong>范围说明：</strong>虽然计划阶段建议本次只做 A 优先级，但工作区当前代码已包含 G-004 复仇突袭实现。
+    该功能通过 <code>EnableRevengeRaid: false</code> 在标准变体中默认关闭，不影响 A 优先级机制。
+  </div>
+  <table>
+    <tr>
+      <th style="width: 8%">编号</th>
+      <th style="width: 20%">变更项</th>
+      <th style="width: 28%">改动位置</th>
+      <th style="width: 24%">改动原因</th>
+      <th style="width: 20%">预期效果</th>
+    </tr>
+    <tr>
+      <td><code>G-004</code></td>
+      <td>复仇突袭 Revenge Raid</td>
+      <td>
+        <span class="file">src/Types/Dice.ts</span><br>
+        新增 <code>DiceMode.Revenge</code> / <code>RevengeRollResult</code><br>
+        <span class="file">src/Types/Player.ts</span><br>
+        新增 <code>RevengeToken</code><br>
+        <span class="file">src/Core/DiceRoller.ts</span><br>
+        新增 <code>RollRevengeResult()</code><br>
+        <span class="file">src/Core/GameState.ts</span><br>
+        新增 <code>PlayRevengeTurn()</code>、令牌授予逻辑
+      </td>
+      <td>给被抢/崩坏受害者一个反击出口，增加互动与情绪高点。</td>
+      <td>被抢或崩坏损失最高者获令牌；消耗令牌可掠夺目标或失败自损。</td>
+    </tr>
+  </table>
+
+  <h3>AI 适配</h3>
+  <table>
+    <tr>
+      <th style="width: 8%">编号</th>
+      <th style="width: 20%">变更项</th>
+      <th style="width: 28%">改动位置</th>
+      <th style="width: 24%">改动原因</th>
+      <th style="width: 20%">预期效果</th>
+    </tr>
+    <tr>
+      <td><code>AI-001 ~ AI-006</code></td>
+      <td>AI 感知新机制</td>
+      <td>
+        <span class="file">src/AI/Evaluator.ts</span><br>
+        样本生成调用 <code>Occupation.Calculate(..., SprintBonus)</code><br>
+        <span class="file">src/AI/Simulator.ts</span><br>
+        Snapshot 包含 <code>RevengeToken</code><br>
+        <span class="file">src/AI/*.test.ts</span><br>
+        所有测试 TurnResult 补齐新字段
+      </td>
+      <td>AI 必须在评估时考虑冲刺奖励、公敌税导致的领先者削弱、顺位轮换带来的行动顺序变化。</td>
+      <td>AI 在冲刺阶段更积极进攻，领先时更忌惮公敌税，策略随轮次动态调整。</td>
+    </tr>
+  </table>
+
+  <h2>二、关键代码位置与改动详情</h2>
+
+  <h3>2.1 公敌税结算</h3>
+  <p><span class="file">src/Core/GameState.ts</span> <code>ApplyLeaderTax()</code></p>
+  <ul>
+    <li>仅当 <code>EnableLeaderTax &amp;&amp; LeaderTaxBase &gt; 0</code> 时执行。</li>
+    <li>统计所有 <code>Active &amp;&amp; IsLaunched</code> 玩家，找出私有最高者。</li>
+    <li>若存在并列最高（含 0），免税。</li>
+    <li>实际扣税 <code>min(LeaderTaxBase, Leader.PrivateTerritory)</code>，加到公共池。</li>
+    <li>在 <code>PlayTurn</code> 末尾、<code>AdvanceToNextPlayer</code> 之前调用，仅当本轮结束时。</li>
+  </ul>
+
+  <h3>2.2 顺位轮换</h3>
+  <p><span class="file">src/Core/GameState.ts</span> <code>AdvanceToNextPlayer()</code></p>
+  <ul>
+    <li>新增 <code>InMainLoop = this._Phase === GamePhase.SelectMode</code> 判断。</li>
+    <li>仅在主循环且下一位回到 <code>FirstPlayerIndex</code> 时，<code>RoundIndex += 1</code> 并更新 <code>FirstPlayerIndex</code>。</li>
+    <li>发射阶段、加赛阶段、开发过度后的重新发射均不触发轮次递增。</li>
+  </ul>
+
+  <h3>2.3 枯竭冲刺</h3>
+  <p><span class="file">src/Core/Occupation.ts</span> <code>Calculate(..., SprintBonus = 0)</code></p>
+  <ul>
+    <li>正向 <code>RawGain</code> 先加 <code>SprintBonus</code>，再乘以开发链倍率。</li>
+    <li>负向 RawGain（倒扣）与 0（None）不加 Bonus。</li>
+  </ul>
+  <p><span class="file">src/Core/GameState.ts</span> <code>CalculateSprintBonus()</code></p>
+  <ul>
+    <li>三条件同时满足才生效：开关开启、公共 ≤ SprintThreshold、RawGain &gt; 0。</li>
+  </ul>
+
+  <h3>2.4 配置与开关</h3>
+  <p><span class="file">src/Types/GameConfig.ts</span></p>
+  <ul>
+    <li><code>CreateDefaultConfig</code>：所有新开关 <code>false</code>，v1.1 兼容。</li>
+    <li><code>CreateVariantConfig</code>：开启 LeaderTax / RotatingStart / ScarcitySprint；关闭 RevengeRaid。</li>
+  </ul>
+
+  <h2>三、模糊 / 冲突条目处理</h2>
+  <table>
+    <tr>
+      <th style="width: 25%">条目</th>
+      <th style="width: 35%">歧义/冲突</th>
+      <th style="width: 40%">处理建议与最终选择</th>
+    </tr>
+    <tr>
+      <td><code>G-001</code> 税额 Scale</td>
+      <td>清单提到 LeaderTaxScale 可选（领先每 10 点额外 +1）。</td>
+      <td>标准变体 <strong>不启用 Scale</strong>，仅 Base=1。Scale 保留为后续实验开关，避免过度压制领先者。</td>
+    </tr>
+    <tr>
+      <td><code>G-002</code> 轮次定义</td>
+      <td>轮次从游戏开始计数，还是进入主循环后计数？NeedsRelaunch 玩家是否计入本轮？</td>
+      <td><strong>进入主循环后 RoundIndex=0</strong>；每所有 Active+Launched 玩家行动一次加 1；NeedsRelaunch 玩家本轮跳过，不触发轮次递增。</td>
+    </tr>
+    <tr>
+      <td><code>G-003</code> 冲刺奖励倍率</td>
+      <td>Bonus 是在倍率前加还是倍率后加？</td>
+      <td><strong>先加 Bonus 再乘倍率</strong>：RawGain' = (RawGain + Bonus) × Multiplier。保证冲刺奖励也能被开发链放大。</td>
+    </tr>
+    <tr>
+      <td><code>G-004</code> 复仇范围</td>
+      <td>本次是否实现复仇突袭？</td>
+      <td>当前代码 <strong>已实现</strong>，但标准变体默认 <strong>关闭</strong>。复仇使用后清零连击；崩坏受害者并列时不发令牌。</td>
+    </tr>
+  </table>
+
+  <h2>四、回归验证</h2>
+  <ul>
+    <li><code>CreateDefaultConfig</code> 关闭所有开关后，原有 280 个测试继续通过。</li>
+    <li>新增 <span class="file">src/Core/GameStateVariant.test.ts</span> 11 个测试，覆盖公敌税、顺位轮换、枯竭冲刺、变体配置。</li>
+    <li>全量结果：37 测试文件 / 291 测试通过；<code>tsc --noEmit</code> 零错误。</li>
+  </ul>
+
+  <h2>五、已知遗留与下一步</h2>
+  <ul>
+    <li>复仇突袭目标选择 UI 当前为自动选择私有最高者；未来可扩展为玩家手动点选席位卡。</li>
+    <li>公敌税 Scale、复仇自定义参数等高级配置尚未暴露到 UI。</li>
+    <li>建议下一轮跑蒙特卡洛对比：v1.1 默认配置 vs v1.2 标准变体，量化对局时长与胜率变化。</li>
+  </ul>
+</body>
+</html>

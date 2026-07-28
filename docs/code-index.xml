@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  第二绿洲 (The Second Oasis) 代码索引
+  用途：快速定位关键变量/常量/类/函数定义，节省 Token
+  生成日期：2026-07-26
+  总文件数：117 个 .ts 文件
+-->
+<codebase root="D:\Project Regolith\Code">
+  <overview>
+    <tech>TypeScript(strict) + Vite + Vitest + Canvas2D + WebSocket + WebAudio</tech>
+    <architecture>
+      <layer name="Types">类型定义层</layer>
+      <layer name="Core">游戏核心逻辑层</layer>
+      <layer name="AI">AI 决策层</layer>
+      <layer name="Store">状态适配层</layer>
+      <layer name="Render">Canvas 渲染层</layer>
+      <layer name="UI">DOM 界面层</layer>
+      <layer name="App">应用控制层</layer>
+      <layer name="Net">联机客户端层</layer>
+      <layer name="Audio">音频引擎层</layer>
+      <layer name="Server">服务端层</layer>
+    </architecture>
+  </overview>
+
+  <!-- ========== 全局常量 ========== -->
+  <constants file="src/Core/Constants.ts">
+    <var name="MAX_PUBLIC_TERRITORY" value="100" desc="公共领土上限"/>
+    <var name="INITIAL_PUBLIC_TERRITORY" value="100" desc="公共领土初始值"/>
+    <var name="INITIAL_PRIVATE_TERRITORY" value="0" desc="私有领土初始值"/>
+    <var name="ROBBERY_THRESHOLD_M" value="0" desc="抢夺触发阈值"/>
+    <var name="LAUNCH_THRESHOLD" value="7" desc="发射成功阈值(双骰≥7)"/>
+    <var name="LAUNCH_REWARD" value="2" desc="发射成功奖励领土"/>
+    <var name="COLLAPSE_INITIAL_X" value="2" desc="崩坏初始系数"/>
+    <var name="DEV_CHAIN_OVERLOAD_THRESHOLD" value="3" desc="开发链过载阈值"/>
+    <var name="MAX_PLAYERS" value="4"/>
+    <var name="MIN_PLAYERS" value="2"/>
+  </constants>
+
+  <constants file="src/Config/UiConstants.ts">
+    <var name="MOBILE_BREAKPOINT" value="768" desc="移动端断点(px)"/>
+    <var name="BOARD_TOTAL_CELLS" value="100" desc="棋盘格数"/>
+    <var name="DICE_ROLL_DURATION" value="800" desc="掷骰动画时长(ms)"/>
+  </constants>
+
+  <!-- ========== Types 层 ========== -->
+  <module name="Types" path="src/Types/">
+    <file name="Player.ts" desc="玩家类型：PlayerId(0-based number), PlayerStatus 枚举(Active/NeedsRelaunch/Eliminated), PlayerSnapshot 只读快照"/>
+    <file name="Territory.ts" desc="TerritorySnapshot 全局领土快照(PublicTerritory + Players[])"/>
+    <file name="Dice.ts" desc="DieFace(1..6), DiceMode 枚举(Steady/Aggressive/None), DiceRollResult"/>
+    <file name="DevChain.ts" desc="DevMultiplier 枚举(None=1/Dev=2/BigDev=3), DevChainOutcome"/>
+    <file name="Robbery.ts" desc="RobberyRole 枚举, RobberyRollRecord, RobberyResult"/>
+    <file name="Collapse.ts" desc="CollapsePlayerLoss, CollapseResult"/>
+    <file name="Launch.ts" desc="LaunchStatus 枚举, LaunchResult"/>
+    <file name="Turn.ts" desc="TurnResult 聚合回合结果"/>
+    <file name="GamePhase.ts" desc="GamePhase 枚举(12个阶段)"/>
+    <file name="GameConfig.ts" desc="GameConfig 接口, CreateDefaultConfig()"/>
+    <file name="GameResult.ts" desc="Winner, TiebreakerRound, GameResult"/>
+    <file name="AI.ts" desc="AIDifficulty 枚举(0-5), AIPersonality(4维), PersonalityArchetype"/>
+    <file name="index.ts" desc="统一导出"/>
+  </module>
+
+  <!-- ========== Utils 层 ========== -->
+  <module name="Utils" path="src/Utils/">
+    <file name="Clamp.ts" desc="Clamp/ClampMin/ClampMax 闭区间限制函数"/>
+    <file name="Random/IRandomSource.ts" desc="IRandomSource 接口(NextDie/NextInt), 随机源抽象"/>
+    <file name="Random/DefaultRandom.ts" desc="DefaultRandom 类, 基于 Math.random"/>
+    <file name="Random/SeededRandom.ts" desc="SeededRandom 类, mulberry32 PRNG 确定性随机"/>
+  </module>
+
+  <!-- ========== Core 层 ========== -->
+  <module name="Core" path="src/Core/">
+    <file name="Constants.ts" desc="全局常量定义(见上方 constants 部分)"/>
+    <file name="Errors/GameError.ts" desc="GameError 基类(带 Code), extends Error"/>
+    <file name="Errors/*.ts" desc="8个子类错误：InvalidDiceMode/InvalidTurnPhase/RobberyThreshold/DevChainOverflow/LaunchNotCompleted/PlayerCount"/>
+    <file name="DiceRoller.ts" desc="DiceRoller 掷骰模块, Roll(Mode) → DiceRollResult"/>
+    <file name="DevChain.ts" desc="DevChain 开发链状态机, Advance(IsDouble,Mode)/Reset()"/>
+    <file name="Occupation.ts" desc="Occupation 占领结算, 导出 OccupationOutcome 接口"/>
+    <file name="Robbery.ts" desc="Robbery 抢夺裁决, 完整抢夺流程"/>
+    <file name="Collapse.ts" desc="Collapse 崩坏结算, 递增系数X"/>
+    <file name="Launch.ts" desc="Launch 发射模块, Attempt()/IsAllLaunched()"/>
+    <file name="GameEnd.ts" desc="GameEnd 终局判定+加赛逻辑"/>
+    <file name="GameState.ts" desc="【核心】GameState 主状态机. Start/AttemptLaunch/PlayTurn(Roll+Robby+Collapse+End)/RunTiebreaker. Phase/CurrentPlayer/IsOver/Result/Snapshot/RobberyTriggeredCount/CollapseX"/>
+    <file name="MonteCarloSimulation.ts" desc="蒙特卡洛仿真: SimulateOneGame/RunSimulation/Main"/>
+  </module>
+
+  <!-- ========== AI 层 ========== -->
+  <module name="AI" path="src/AI/">
+    <file name="AIConfig.ts" desc="AIPlayerConfig/AIGameConfig, CreateAIGameConfig(seed)/IsAIPlayer(id)"/>
+    <file name="Difficulty.ts" desc="DifficultyProfile(10参数), GetDifficultyProfile(diff)/GetDifficultyLabel/GetDifficultyName"/>
+    <file name="Personality.ts" desc="CreatePersonality(seed)/GetArchetypeLabel/GetArchetypeDisplayName/GetAllArchetypes"/>
+    <file name="Memory.ts" desc="GrudgeRegistry 敌意登记簿, GRUDGE_SCORES 预置分数"/>
+    <file name="Evaluator.ts" desc="EvaluateMode(ctx) 静态局面评估, 概率加权三种模式"/>
+    <file name="Simulator.ts" desc="SimulateFirstMode(ctx) 浅层前瞻模拟"/>
+    <file name="DecisionMaker.ts" desc="DecideMode(ctx) 混合决策: 评估+模拟+性格矫正"/>
+    <file name="TransparentLog.ts" desc="ModeDecisionTrace/LaunchDecisionTrace/TiebreakerDecisionTrace 决策可解释性日志"/>
+    <file name="AIPlayer.ts" desc="AIPlayer 单AI玩家, DecideMode/DecideLaunch/DecideTiebreaker/ObserveTurn"/>
+    <file name="AIDirector.ts" desc="AIDirector AI总控, PlayForCurrentPlayer/ObserveTurn, CreateNullAIDirector()"/>
+    <file name="index.ts" desc="统一导出"/>
+  </module>
+
+  <!-- ========== Store 层 ========== -->
+  <module name="Store" path="src/Store/">
+    <file name="EventEmitter.ts" desc="EventEmitter&lt;E&gt; 泛型事件发射器, On/Once/Emit/Off"/>
+    <file name="ViewModel.ts" desc="PlayerViewModel/BoardViewModel/ViewModelContext, ToPlayerViewModel/ToBoardViewModel 数据→视图转换"/>
+    <file name="PlayerPalette.ts" desc="PlayerPalette 静态工具: Color(id)/ColorDim/LabelShort/LabelLong/Codename/ComboLabel/IsInCombo. FACTION_CODENAMES"/>
+    <file name="GameStore.ts" desc="【桥梁】GameStore 实现IGameStore, 包装GameState, StoreEvents(PhaseChange/Snapshot/Launch/Turn/Tiebreaker/GameOver)"/>
+  </module>
+
+  <!-- ========== Render 层 ========== -->
+  <module name="Render" path="src/Render/">
+    <file name="RenderContext.ts" desc="RenderContext Canvas渲染上下文封装, DPR处理, 反锯齿关闭"/>
+    <file name="StarfieldRenderer.ts" desc="StarfieldRenderer 星空背景渲染器"/>
+    <file name="MenuViewportRenderer.ts" desc="MenuViewportRenderer 主菜单旋转月球视口"/>
+    <file name="LayeredCanvas.ts" desc="LayeredCanvas 三层Canvas(背景/主层/FX)管理器, LayerRenderFn"/>
+    <file name="TerritoryMap.ts" desc="TerritoryMap 持久领土归属地图(10×10=100格), OWNER_PUBLIC=-1, OWNER_WASTELAND=-2, GRID=10. 解决领土重排BUG"/>
+    <file name="OasisBoardRenderer.ts" desc="OasisBoardRenderer 月球作战沙盘, SetSource/Freeze/Unfreeze/ApplyEvent/Render/ShowDiceResult"/>
+    <file name="DiceStage.ts" desc="DiceStage 像素骰子翻滚动画, DicePlayOpts"/>
+    <file name="Animation/Animation.ts" desc="Animation 抽象基类(Canvas)"/>
+    <file name="Animation/AnimationManager.ts" desc="AnimationManager 动画时间线管理器"/>
+    <file name="Animation/AnimationCoordinator.ts" desc="AnimationCoordinator 订阅GameStore→动画指令, ICoordProvider"/>
+    <file name="Animation/NumberPopAnimation.ts" desc="NumberPop 数字弹出动画"/>
+    <file name="Animation/SeatPulseAnimation.ts" desc="SeatPulse 席位脉冲动画"/>
+    <file name="Animation/ChainBadgeAnimation.ts" desc="ChainBadge 开发链徽章弹出"/>
+  </module>
+
+  <!-- ========== UI 层 ========== -->
+  <module name="UI" path="src/UI/">
+    <file name="Theme.ts" desc="COLORS 完整配色, FACTION_COLORS[4], CSS_VARIABLES, FactionVar(i)"/>
+    <file name="Dom.ts" desc="El(tag,props,children) 声明式DOM创建, On/Clear/ToggleClass/Qs/Qsa/WaitForElement"/>
+    <file name="StyleInjector.ts" desc="InjectGlobalStyles() 全局CSS注入(CSS-in-TS, 1153行), InjectStyle 动态注入"/>
+    <file name="Layout/Breakpoints.ts" desc="LayoutMode, BREAKPOINTS, DetectLayoutMode(screenWidth)"/>
+    <file name="Layout/LayoutManager.ts" desc="LayoutManager 响应式布局管理器, LayoutEvents"/>
+    <file name="Anim/Tween.ts" desc="TweenNumber rAF ease-out-cubic 数值过渡动画"/>
+    <file name="Components/Component.ts" desc="Component 抽象DOM组件基类, Mount/Unmount/Show/Hide"/>
+    <file name="Components/MainMenu.ts" desc="MainMenu 飞船控制台主菜单, CREW人数/SEED/玩家配置/AI开关. 导出StartConfig/MainMenuAction"/>
+    <file name="Components/MultiplayerLobby.ts" desc="MultiplayerLobby 联机大厅UI, LobbyResult"/>
+    <file name="Components/GameOverScreen.ts" desc="GameOverScreen 终局界面, GameOverCallbacks"/>
+    <file name="Components/GameStageView.ts" desc="GameStageView 游戏舞台, SetPhase/AnnounceTurn/AppendLog/ShowBusy/FlashSeats/ClearConsole"/>
+  </module>
+
+  <!-- ========== App 层 ========== -->
+  <module name="App" path="src/App/">
+    <file name="InputGate.ts" desc="InputGate 输入门控(动画锁), RequestMode/SubmitMode/RequestLaunch/SubmitLaunch/RequestTiebreaker/BindKeyboard"/>
+    <file name="AppController.ts" desc="【总控制器】AppController. Run() 主循环(async), 协调InputGate/GameStore/AnimationCoordinator/Renderers. _HandleLaunch/_HandleSelectMode/_HandleTiebreaker"/>
+  </module>
+
+  <!-- ========== Net 层 ========== -->
+  <module name="Net" path="src/Net/">
+    <file name="Messages.ts" desc="完整消息协议: ErrorCode(11种)/ClientMessage/ServerMessage 联合类型, SerializeMessage/DeserializeMessage/ClientMsg工厂"/>
+    <file name="WebSocketClient.ts" desc="WebSocketClient: ConnectionState枚举, Connect/Send/SendAndWait/On/Once/Disconnect, 心跳+自动重连"/>
+    <file name="LobbyClient.ts" desc="LobbyClient: CreateRoom/JoinRoom/StartGame/SpectateRoom/LeaveRoom, LobbyEvents"/>
+    <file name="NetworkGameStore.ts" desc="NetworkGameStore 实现IGameStore, 通过WebSocket同步服务端权威状态"/>
+    <file name="index.ts" desc="统一导出"/>
+  </module>
+
+  <!-- ========== Audio 层 ========== -->
+  <module name="Audio" path="src/Audio/">
+    <file name="AccessibilitySettings.ts" desc="AccessibilitySettings 单例, Muted/ReducedMotion, localStorage持久化"/>
+    <file name="AudioEngine.ts" desc="AudioEngine 原生WebAudio, Resume/Play(Preset)/Dispose, 首次交互后激活AudioContext"/>
+    <file name="SoundMap.ts" desc="音效预设→合成器参数映射, 14个预设(DiceRoll/DiceSettle/OccupyUp/ChainX2/Break/RobberyStart/Win/Lose/Collapse/GameOver等)"/>
+    <file name="Synthesizer.ts" desc="程序化音效合成器"/>
+  </module>
+
+  <!-- ========== Server 层 ========== -->
+  <module name="Server" path="server/">
+    <file name="Types.ts" desc="服务端类型导入点"/>
+    <file name="RoomManager.ts" desc="RoomManager 房间CRUD+过期清理, PlayerConnection/Room/RoomPhase"/>
+    <file name="WebSocketServer.ts" desc="GameWebSocketServer 消息路由, 默认端口9528"/>
+    <file name="GameRoom.ts" desc="GameRoom 权威游戏房间, Handle玩家操作"/>
+    <file name="AIController.ts" desc="AIController 断线玩家AI接管, IAIController"/>
+    <file name="index.ts" desc="服务端入口"/>
+  </module>
+
+  <!-- ========== 关键数据流 ========== -->
+  <dataflow>
+    <path name="本地对局" desc="AppController.Run() → InputGate → GameStore.PlayTurn() → GameState → AnimationCoordinator → Renderers + Audio"/>
+    <path name="联机对局" desc="AppController → NetworkGameStore → WebSocketClient → Server:GameRoom(GameState权威) → 广播 → 各客户端NetworkGameStore"/>
+    <path name="AI对局" desc="AIDirector.PlayForCurrentPlayer() → AIPlayer.DecideMode() → DecisionMaker → Evaluator + Simulator"/>
+    <path name="渲染管线" desc="LayeredCanvas(3层) → OasisBoardRenderer(主层) + StarfieldRenderer(背景) + DiceStage(FX层) + AnimationManager(全部层)"/>
+  </dataflow>
+
+  <!-- ========== 高频引用的关键标识符 ========== -->
+  <hotkeys>
+    <key name="GameState.Phase" type="GamePhase(enum)" desc="当前游戏阶段, 12个阶段状态机"/>
+    <key name="GameState.CurrentPlayer" type="number(0..3)" desc="当前行动玩家索引"/>
+    <key name="GameState.Snapshot" type="TerritorySnapshot" desc="只读领土快照(PublicTerritory + Players[])"/>
+    <key name="GameState.IsOver" type="boolean" desc="对局是否结束"/>
+    <key name="GameState.Result" type="GameResult|null" desc="终局结果"/>
+    <key name="GameStore.StoreEvents" type="PhaseChange|Snapshot|Launch|Turn|Tiebreaker|GameOver" desc="全部商店事件"/>
+
+    <key name="PlayerSnapshot.Id" type="PlayerId(number)" desc="玩家ID 0-3"/>
+    <key name="PlayerSnapshot.PrivateTerritory" type="number" desc="私有领土数"/>
+    <key name="PlayerSnapshot.ConsecutiveDoubles" type="number" desc="连续对子计数(0-3开发连击)"/>
+    <key name="PlayerSnapshot.Status" type="PlayerStatus" desc="Active/NeedsRelaunch/Eliminated"/>
+    <key name="PlayerSnapshot.IsLaunched" type="boolean" desc="是否已完成发射"/>
+    <key name="PlayerSnapshot.IsWasteland" type="boolean" desc="是否处于荒地状态(开发过度)"/>
+
+    <key name="DiceRollResult.Sum" type="number" desc="骰子总和"/>
+    <key name="DiceRollResult.IsDouble" type="boolean" desc="是否为对子"/>
+    <key name="DiceRollResult.IsDeducted" type="boolean" desc="是否触发倒扣(激进≤6)"/>
+    <key name="DiceRollResult.RawGain" type="number" desc="应得领土数(乘倍率前)"/>
+    <key name="DiceRollResult.Mode" type="DiceMode" desc="Steady/Aggressive/None"/>
+
+    <key name="TurnResult.Dice" type="DiceRollResult" desc="掷骰结果"/>
+    <key name="TurnResult.DevChain" type="DevChainOutcome" desc="开发链结果"/>
+    <key name="TurnResult.Occupation" type="OccupationOutcome" desc="占领结算"/>
+    <key name="TurnResult.Robbery" type="RobberyResult|null" desc="抢夺结果"/>
+    <key name="TurnResult.Collapse" type="CollapseResult|null" desc="崩坏结果"/>
+
+    <key name="COLORS" loc="src/UI/Theme.ts:19" desc="全部UI配色常量"/>
+    <key name="FACTION_COLORS" loc="src/UI/Theme.ts:60" desc="4阵营色数组 [#0e7c86,#c4a35a,#8b5e3c,#6b4c4c]"/>
+    <key name="TerritoryMap" loc="src/Render/TerritoryMap.ts:69" desc="持久领土归属地图, GRID=10, CELL=100"/>
+  </hotkeys>
+
+  <!-- ========== 依赖关系摘要 ========== -->
+  <dependencies>
+    <dep from="Core/**" on="Types, Utils" desc="Core层零依赖 Render/UI/Net"/>
+    <dep from="AI/**" on="Types, Core(仅读), Utils" desc="AI通过GameState快照评估,不直接写入"/>
+    <dep from="Store/**" on="Types, Core(GameState)" desc="GameStore包装GameState"/>
+    <dep from="Render/**" on="Types, Store(ViewModel), UI(Theme)" desc="Canvas渲染读取BoardViewModel"/>
+    <dep from="UI/**" on="Store(GameStore事件), Config(UiConstants)" desc="DOM UI订阅GameStore事件"/>
+    <dep from="App/**" on="UI, Render, Store, Audio, Net(AI可选)" desc="AppController统一编排"/>
+    <dep from="Net/**" on="Types, Store(IGameStore), Core(Messages)" desc="联网层实现IGameStore"/>
+    <dep from="Audio/**" on="Store(GameStore事件)" desc="音频响应GameStore事件"/>
+    <dep from="Server/**" on="Core(GameState权威), Net(Messages共享)" desc="服务端权威结算"/>
+  </dependencies>
+
+  <!-- ========== 测试文件清单 ========== -->
+  <tests>
+    <file path="src/Core/DiceRoller.test.ts" cover="3种掷骰模式"/>
+    <file path="src/Core/DevChain.test.ts" cover="开发链状态机"/>
+    <file path="src/Core/Occupation.test.ts" cover="占领结算"/>
+    <file path="src/Core/Robbery.test.ts" cover="抢夺裁决"/>
+    <file path="src/Core/Collapse.test.ts" cover="崩坏结算"/>
+    <file path="src/Core/Launch.test.ts" cover="发射模块"/>
+    <file path="src/Core/GameEnd.test.ts" cover="终局+加赛"/>
+    <file path="src/Core/GameState.test.ts" cover="完整对局集成"/>
+    <file path="src/Core/MonteCarloSimulation.test.ts" cover="蒙特卡洛仿真"/>
+    <file path="src/Utils/Clamp.test.ts" cover="边界函数"/>
+    <file path="src/Utils/Random/IRandomSource.test.ts" cover="随机源确定性"/>
+    <file path="src/Store/EventEmitter.test.ts" cover="事件系统"/>
+    <file path="src/Store/ViewModel.test.ts" cover="视图模型转换"/>
+    <file path="src/Store/PlayerPalette.test.ts" cover="玩家配色映射"/>
+    <file path="src/Store/GameStore.test.ts" cover="事件发射+流控"/>
+    <file path="src/Render/TerritoryMap.test.ts" cover="领土地图完整测试"/>
+    <file path="src/Render/Animation/AnimationManager.test.ts" cover="动画管理器"/>
+    <file path="src/Render/Animation/NumberPopAnimation.test.ts" cover="数字弹出动画"/>
+    <file path="src/Render/Animation/SeatPulseAnimation.test.ts" cover="席位脉冲动画"/>
+    <file path="src/Render/Animation/ChainBadgeAnimation.test.ts" cover="开发链徽章动画"/>
+    <file path="src/Render/Animation/AnimationCoordinator.test.ts" cover="动画编排器"/>
+    <file path="src/App/InputGate.test.ts" cover="输入门控"/>
+    <file path="src/AI/AIConfig.test.ts" cover="AI配置"/>
+    <file path="src/AI/Difficulty.test.ts" cover="难度配置"/>
+    <file path="src/AI/Personality.test.ts" cover="性格生成"/>
+    <file path="src/AI/Memory.test.ts" cover="敌意记忆"/>
+    <file path="src/AI/Evaluator.test.ts" cover="局面评估器"/>
+    <file path="src/AI/Simulator.test.ts" cover="前瞻模拟器"/>
+    <file path="src/AI/DecisionMaker.test.ts" cover="决策器"/>
+    <file path="src/AI/TransparentLog.test.ts" cover="决策可解释日志"/>
+    <file path="src/AI/AIPlayer.test.ts" cover="AI玩家实例"/>
+    <file path="src/AI/AIDirector.test.ts" cover="AI总控"/>
+    <file path="src/Audio/AccessibilitySettings.test.ts" cover="可访问性设置"/>
+    <file path="src/Audio/Synthesizer.test.ts" cover="音效合成器"/>
+    <file path="src/Audio/AudioEngine.test.ts" cover="音频引擎"/>
+  </tests>
+
+</codebase>
