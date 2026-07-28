@@ -421,3 +421,55 @@ describe('CardEngine 卡牌定义完整性', () => {
     }
   });
 });
+
+describe('CardEngine 种子复现', () => {
+  it('完整对局模拟应完全复现（洗牌→抽牌→弃牌→回收循环）', () => {
+    const Seed = 42;
+    const Engine1 = CreateEngine(Seed);
+    const Engine2 = CreateEngine(Seed);
+
+    Engine1.DealToAll([0, 1, 2, 3]);
+    Engine2.DealToAll([0, 1, 2, 3]);
+
+    for (let I = 0; I < 100; I++) {
+      const C1 = Engine1.DrawCard();
+      const C2 = Engine2.DrawCard();
+      if (C1 === null || C2 === null) break;
+      expect(C1.Definition.Id).toBe(C2.Definition.Id);
+
+      if (I % 3 === 0) {
+        Engine1.DiscardCard(0, C1.InstanceId);
+        Engine2.DiscardCard(0, C2.InstanceId);
+      }
+    }
+
+    expect(Engine1.DeckSize).toBe(Engine2.DeckSize);
+    expect(Engine1.DiscardSize).toBe(Engine2.DiscardSize);
+  });
+
+  it('弃牌堆回收后应保持确定性', () => {
+    const Engine1 = CreateEngine(99);
+    const Engine2 = CreateEngine(99);
+
+    Engine1.DealToAll([0]);
+    Engine2.DealToAll([0]);
+
+    const Hand1 = Engine1.GetHand(0);
+    const Hand2 = Engine2.GetHand(0);
+    expect(Hand1[0].Definition.Id).toBe(Hand2[0].Definition.Id);
+
+    Engine1.PlayCard(0, Hand1[0].InstanceId, null);
+    Engine2.PlayCard(0, Hand2[0].InstanceId, null);
+
+    for (let I = 0; I < 77; I++) {
+      Engine1.DrawCard();
+      Engine2.DrawCard();
+    }
+
+    expect(Engine1.DeckSize).toBe(0);
+    const FromDiscard1 = Engine1.DrawCard();
+    const FromDiscard2 = Engine2.DrawCard();
+    expect(FromDiscard1).not.toBeNull();
+    expect(FromDiscard1!.Definition.Id).toBe(FromDiscard2!.Definition.Id);
+  });
+});

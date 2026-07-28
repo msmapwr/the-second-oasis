@@ -4,6 +4,62 @@
 
 ---
 
+## [1.3.0] — 2026-07-28
+
+> **卡牌系统全栈完工**。剩余高优先级效果落地 + 20000 局蒙特卡洛基线 + AI 学会使用技能卡牌。
+
+### 卡牌效果补完
+
+- **三层领土保护**：TerritoryFloor 私有不低于打出时值 / TerritoryShield 免疫一次损失 / AbsoluteShield 免疫本回合损失——在占领/抢夺/崩坏五个结算路径统一拦截
+- **额外回合**：权杖骑士打出后当前玩家连续两个 SelectMode，AdvanceToNextPlayer 检测标志位停留
+- **AP 经济修正**：ApDiscount 降消耗 1 AP / ApRefund 返还一半 / FirstCardFree 每轮首张免 AP——UseCard 中动态计算 ActualApCost
+- **跨回合修饰**：太阳 PersistentRawGain 使本大轮剩余回合 RawGain +1，轮末自动清零
+- **骰面选择**：ChooseExactDice 默认双 6（对子，Sum=12）/ SetDie 默认首骰 6——均支持后续接入 DiceSelector 交互 UI
+- **目标自动选择**：SingleEnemy / RichestOther 自动选私有最高者，卡牌不再因缺目标而无效
+
+### AI 卡牌决策
+
+- `CardStrategist` 决策引擎：对每张手牌计算优先级分数，覆盖治疗/连击保护/崩坏防御/收益提升/掠夺/骰子控制/反制预置七大类
+- **难度分级**：Rookie(0-1) 随机洗牌选 2 张 / Intermediate(2) 过滤低优先级 / Advanced+(3-5) 全排序使用
+- **注入点**：AIDirector._AutoSelectMode / _AutoLaunch——先打牌再选模式，GameState 修正后再评估
+- **反制时机**：抢夺已触发时预置宝剑牌，崩坏 X≥3 时优先 CollapseReduction / FullNegate
+- **连击保护**：ConsecutiveDoubles ≥ 1 时优先 ForceDouble / DevChainProtect
+- **治疗自救**：私有 < 5 最优先治疗；< 3 时不惜消耗全 AP 保命
+
+### 蒙特卡洛基线
+
+- **规模**：2 人 10000 局 + 3 人 5000 局 + 4 人 5000 局 = 20000 局含卡牌
+- **新增**：每张牌使用率统计 + 花色贡献度分布 + TOP 20 热力图
+- **关键数据**：
+
+| 指标 | 2人 | 3人 | 4人 |
+|------|-----|-----|-----|
+| 回合数 | 11.2 | 17.9 | 23.2 |
+| 用牌/局 | 7.1 张 | 6.2 张 | 5.6 张 |
+| 胜率均衡 | 51/49 | 34/33/32 | 25/26/24/25 |
+| 花色贡献 | Major 34%/Pentacles 26%/Cups 21%/Wands 19% |
+
+- **平衡建议**（后续版本）：权杖花色整体 AP 减 1；大阿尔卡那 AP 加 1
+
+### 种子复现
+
+- 新增 2 个确定性测试：洗牌→弃牌→回收全链 + 弃牌堆回收后 ID 一致
+- CardEngine 37 项测试全部通过，自定义种子下卡牌序列 100% 可复现
+
+### UI 组件
+
+- `CardSelector`：点选/排序/弃牌三模式，供 Scry 和手牌超限复用
+- `DiceSelector`：骰面 1~6 选点 + Unicode 预览，供 SetDie/ChooseExactDice 交互
+- `CardHandView` 重构：侧边定位、跟随当前玩家切换、AI 卡背、悬停 Tooltip
+
+### 验证
+
+- `tsc --noEmit` 零错误
+- `vitest run` 340/344 通过（4 个预存无关失败）
+- 蒙特卡洛 20000 局零崩溃
+
+---
+
 ## [1.2.2] — 2026-07-28
 
 > **传统模式开关**。乘员配置界面新增模式选择，一键切换无卡牌的经典规则。

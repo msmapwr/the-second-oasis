@@ -81,6 +81,13 @@ export class GameState {
   }> = [];
 
   private _ForcedModes: Map<PlayerId, DiceMode> = new Map();
+  private _TerritoryFloors: Map<PlayerId, number> = new Map();
+  private _TerritoryShields: Set<PlayerId> = new Set();
+  private _AbsoluteShields: Set<PlayerId> = new Set();
+  private _ApDiscountActive: boolean = false;
+  private _FirstCardFreeThisRound: boolean = true;
+  private _ExtraTurnPending: boolean = false;
+  private _PersistentRawGain: boolean = false;
 
   constructor(Config: GameConfig) {
     if (Config.PlayerCount < MIN_PLAYERS || Config.PlayerCount > MAX_PLAYERS) {
@@ -260,7 +267,7 @@ export class GameState {
 
     const Def = CardInst.Definition;
 
-    if (Player.PrivateTerritory < Def.ApCost) return null;
+    if (Player.PrivateTerritory < Def.ApCost && !this._FirstCardFreeThisRound) return null;
 
     const IsLaunchPhase = this._Phase === GamePhase.LaunchPhase;
     if (IsLaunchPhase && Def.EffectPhase !== 'LaunchPhase') return null;
@@ -278,8 +285,26 @@ export class GameState {
     const UsageResult = this._CardEngine.PlayCard(PlayerId, InstanceId, EffectiveTarget);
     if (!UsageResult) return null;
 
-    Player.PrivateTerritory -= Def.ApCost;
-    this._PublicTerritory += Def.ApCost;
+    const ActualApCost = (Def.EffectMechanic === 'FirstCardFree' || this._FirstCardFreeThisRound)
+      ? 0 : (this._ApDiscountActive ? Math.max(1, Def.ApCost - 1) : Def.ApCost);
+
+    if (this._FirstCardFreeThisRound && ActualApCost > 0) {
+      this._FirstCardFreeThisRound = false;
+    }
+
+    Player.PrivateTerritory -= ActualApCost;
+    this._PublicTerritory += ActualApCost;
+
+    if (Def.EffectMechanic === 'ApRefund') {
+      const Refund = Math.floor(ActualApCost / 2);
+      this._PublicTerritory -= Refund;
+      Player.PrivateTerritory += Refund;
+    }
+
+    if (this._ApDiscountActive) {
+      Player.PrivateTerritory += 1;
+      this._PublicTerritory -= 1;
+    }
 
     this.ApplyCardImmediateEffect(Def, PlayerId, EffectiveTarget);
 
@@ -307,7 +332,8 @@ export class GameState {
       'Reroll', 'SetDie', 'SetDieTo6', 'SelectiveReroll', 'SetMinimum',
       'ChooseExactDice', 'BestOfTwoModes', 'ForceDouble', 'ConditionalForceDouble',
       'RawGainBonus', 'TripleRawGain', 'GainAndDraw', 'DevChainProtect', 'ChaosRawGain',
-      'SkipTurn', 'ExtraTurn', 'ModeLock', 'ForceAggressive',
+      'SkipTurn', 'ExtraTurn', 'ModeLock', 'ForceAggressive', 'RerollTarget',
+      'PersistentRawGain', 'Redistribute',
     ];
     if (DiceMechanics.includes(Def.EffectMechanic)) {
       this._PendingCard = Record;
@@ -397,7 +423,10 @@ export class GameState {
         const Snapshot = this.Snapshot.Players;
         const Result = this._Collapse.Resolve(PlayerId, Snapshot, 5, this._PublicTerritory);
         for (const Loss of Result.PlayerLosses) {
-          this._Players[Loss.Id].PrivateTerritory = Loss.AfterPrivate;
+          this._Players[Loss.Id].PrivateTerritory += this.ApplyTerritoryProtection(
+            Loss.Id,
+            Loss.AfterPrivate - this._Players[Loss.Id].PrivateTerritory,
+          );
         }
         this._PublicTerritory += Result.PublicDelta;
         break;
@@ -476,9 +505,33 @@ export class GameState {
         break;
       }
       case 'AbsoluteShield': {
+        this._AbsoluteShields.add(PlayerId);
         break;
       }
       case 'TerritoryShield': {
+        this._TerritoryShields.add(PlayerId);
+        break;
+      }
+      case 'TerritoryFloor': {
+        this._TerritoryFloors.set(PlayerId, this._Players[PlayerId].PrivateTerritory);
+        break;
+      }
+      case 'ExtraTurn': {
+        this._ExtraTurnPending = true;
+        break;
+      }
+      case 'ApDiscount': {
+        this._ApDiscountActive = true;
+        break;
+      }
+      case 'ApRefund': {
+        break;
+      }
+      case 'CounterCostPenalty': {
+        break;
+      }
+      case 'PersistentRawGain': {
+        this._PersistentRawGain = true;
         break;
       }
       default:
@@ -666,7 +719,11 @@ export class GameState {
     const Dice = this._Dice.Roll(EffectiveMode);
     const PendingCard = this._PendingCard;
     this._PendingCard = null;
-    const ModifiedDice = this.ApplyCardDiceModifiers(Dice, PendingCard, PlayerId);
+    let ModifiedDice = this.ApplyCardDiceModifiers(Dice, PendingCard, PlayerId);
+
+    if (this._PersistentRawGain && ModifiedDice.RawGain > 0 && !ModifiedDice.IsDeducted) {
+      ModifiedDice = { ...ModifiedDice, RawGain: ModifiedDice.RawGain + 1, Sum: ModifiedDice.Sum + 1 };
+    }
 
     let EffectiveIsDouble = ModifiedDice.IsDouble;
     if (PendingCard !== null) {
@@ -747,7 +804,8 @@ export class GameState {
     );
 
     this._PublicTerritory = Occ.PublicAfter;
-    Player.PrivateTerritory += Occ.PrivateDelta;
+    const ProtectedDelta = this.ApplyTerritoryProtection(PlayerId, Occ.PrivateDelta);
+    Player.PrivateTerritory += ProtectedDelta;
 
     const ActiveConsts = this._CardEngine.GetActiveConstantsForPlayer(PlayerId);
     for (const Ac of ActiveConsts) {
@@ -1096,8 +1154,10 @@ export class GameState {
 
     Result = this.ApplyRobberyCounters(Result, InitiatorId);
 
-    this._Players[InitiatorId].PrivateTerritory += Result.InitiatorDelta;
-    this._Players[Result.Defender].PrivateTerritory += Result.DefenderDelta;
+    const ProtectedInitDelta = this.ApplyTerritoryProtection(InitiatorId, Result.InitiatorDelta);
+    const ProtectedDefDelta = this.ApplyTerritoryProtection(Result.Defender, Result.DefenderDelta);
+    this._Players[InitiatorId].PrivateTerritory += ProtectedInitDelta;
+    this._Players[Result.Defender].PrivateTerritory += ProtectedDefDelta;
     this._PublicTerritory += Result.PublicDelta;
     this._RobberyTriggeredCount += 1;
     this.CheckAndApplyElimination();
@@ -1183,7 +1243,10 @@ export class GameState {
     Result = this.ApplyCollapseCounters(Result, InitiatorId);
 
     for (const Loss of Result.PlayerLosses) {
-      this._Players[Loss.Id].PrivateTerritory = Loss.AfterPrivate;
+      this._Players[Loss.Id].PrivateTerritory += this.ApplyTerritoryProtection(
+        Loss.Id,
+        Loss.AfterPrivate - this._Players[Loss.Id].PrivateTerritory,
+      );
     }
     this._PublicTerritory += Result.PublicDelta;
     this.CheckAndApplyElimination();
@@ -1240,6 +1303,11 @@ export class GameState {
   }
 
   private AdvanceToNextPlayer(): void {
+    if (this._ExtraTurnPending) {
+      this._ExtraTurnPending = false;
+      return;
+    }
+
     const Count = this._Config.PlayerCount;
     const InMainLoop = this._Phase === GamePhase.SelectMode;
 
@@ -1263,6 +1331,10 @@ export class GameState {
     }
 
     this._CurrentPlayerIndex = NextIndex;
+
+    this._AbsoluteShields.clear();
+    this._FirstCardFreeThisRound = true;
+    this._PersistentRawGain = false;
 
     const Next = this._Players[this._CurrentPlayerIndex];
     if (Next.Status === PlayerStatus.Eliminated) {
@@ -1370,6 +1442,29 @@ export class GameState {
       }
     }
     return Best ?? ((SelfId + 1) % this._Config.PlayerCount);
+  }
+
+  private ApplyTerritoryProtection(PlayerId: PlayerId, ProposedDelta: number): number {
+    if (this._AbsoluteShields.has(PlayerId)) {
+      this._AbsoluteShields.delete(PlayerId);
+      return ProposedDelta > 0 ? ProposedDelta : 0;
+    }
+
+    if (this._TerritoryShields.has(PlayerId) && ProposedDelta < 0) {
+      this._TerritoryShields.delete(PlayerId);
+      return 0;
+    }
+
+    const Floor = this._TerritoryFloors.get(PlayerId);
+    if (Floor !== undefined && ProposedDelta < 0) {
+      const PlayerTerritory = this._Players[PlayerId].PrivateTerritory;
+      const After = PlayerTerritory + ProposedDelta;
+      if (After < Floor) {
+        return Floor - PlayerTerritory;
+      }
+    }
+
+    return ProposedDelta;
   }
 
   private AutoSelectTarget(SelfId: PlayerId, Target: string): PlayerId | null {

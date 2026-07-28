@@ -14,6 +14,8 @@ import { GameState } from './GameState';
 import { CreateDefaultConfig, CreateVariantConfig } from '@/Types/GameConfig';
 import { GamePhase } from '@/Types/GamePhase';
 import { DiceMode } from '@/Types/Dice';
+import { ALL_TAROT_CARDS } from './Card/CardData';
+import type { CardDefinition } from '@/Types/Card';
 
 interface GameStats {
   Turns: number;
@@ -24,14 +26,25 @@ interface GameStats {
   FinalPrivateMax: number;
   FinalPrivateSum: number;
   CardsUsed: number;
+  CardUsages: Map<string, { Uses: number; Wins: number }>;
 }
 
-/** 模拟一局对局，返回统计 */
+interface CardUsageEntry {
+  CardId: string;
+  Name: string;
+  Suit: string;
+  ApCost: number;
+  Type: string;
+  Uses: number;
+  Wins: number;
+}
+
 function SimulateOneGame(
   PlayerCount: 2 | 3 | 4,
   Seed: number,
   Mode: DiceMode = DiceMode.Aggressive,
   UseCards: boolean = false,
+  CollectCardStats: boolean = false,
 ): GameStats {
   const Config = UseCards
     ? CreateVariantConfig(PlayerCount, Seed)
@@ -45,6 +58,7 @@ function SimulateOneGame(
   let OverloadCount = 0;
   let CardsUsed = 0;
   const MaxIter = 2000;
+  const UsedCardIds: string[] = [];
 
   while (!State.IsOver && Turns < MaxIter) {
     const Phase = State.Phase as GamePhase;
@@ -58,8 +72,8 @@ function SimulateOneGame(
         for (const Card of Hand) {
           if (Card.Definition.EffectPhase === 'LaunchPhase' &&
               State.CanPlayCard(CurrId, Card.InstanceId)) {
-            State.UseCard(CurrId, Card.InstanceId, null);
-            CardsUsed++;
+            const R = State.UseCard(CurrId, Card.InstanceId, null);
+            if (R) { CardsUsed++; UsedCardIds.push(R.CardId); }
           }
         }
       }
@@ -70,8 +84,8 @@ function SimulateOneGame(
         const Hand = State.GetCardHand(CurrId);
         for (const Card of Hand) {
           if (State.CanPlayCard(CurrId, Card.InstanceId)) {
-            State.UseCard(CurrId, Card.InstanceId, null);
-            CardsUsed++;
+            const R = State.UseCard(CurrId, Card.InstanceId, null);
+            if (R) { CardsUsed++; UsedCardIds.push(R.CardId); }
           }
         }
       }
@@ -85,24 +99,32 @@ function SimulateOneGame(
       break;
     }
     Turns++;
-
     if (State.CollapseX > XBefore) CollapseCount++;
     if (State.RobberyTriggeredCount > RobberyBefore) RobberyTriggered = true;
   }
 
   const Players = State.Snapshot.Players;
-  const FinalPrivateMax = Math.max(...Players.map((P) => P.PrivateTerritory));
-  const FinalPrivateSum = Players.reduce((S, P) => S + P.PrivateTerritory, 0);
+  const WinnerId = State.Result?.Winners[0]?.Id ?? -1;
+
+  const CardUsages = new Map<string, { Uses: number; Wins: number }>();
+  if (CollectCardStats) {
+    for (const Cid of UsedCardIds) {
+      const Entry = CardUsages.get(Cid) ?? { Uses: 0, Wins: 0 };
+      Entry.Uses++;
+      CardUsages.set(Cid, Entry);
+    }
+  }
 
   return {
     Turns,
-    WinnerId: State.Result?.Winners[0]?.Id ?? -1,
+    WinnerId,
     RobberyTriggered,
     CollapseCount,
     OverloadCount,
-    FinalPrivateMax,
-    FinalPrivateSum,
+    FinalPrivateMax: Math.max(...Players.map((P) => P.PrivateTerritory)),
+    FinalPrivateSum: Players.reduce((S, P) => S + P.PrivateTerritory, 0),
     CardsUsed,
+    CardUsages,
   };
 }
 
@@ -113,6 +135,7 @@ export function RunSimulation(
   Mode: DiceMode = DiceMode.Aggressive,
   BaseSeed: number = 1,
   UseCards: boolean = false,
+  CollectCardStats: boolean = false,
 ): {
   PlayerCount: number;
   GameCount: number;
@@ -127,10 +150,11 @@ export function RunSimulation(
   AvgFinalMax: number;
   AvgFinalSum: number;
   AvgCardsUsed: number;
+  CardUsageList: CardUsageEntry[];
 } {
   const Stats: GameStats[] = [];
   for (let I = 0; I < GameCount; I++) {
-    Stats.push(SimulateOneGame(PlayerCount, BaseSeed + I, Mode, UseCards));
+    Stats.push(SimulateOneGame(PlayerCount, BaseSeed + I, Mode, UseCards, CollectCardStats));
   }
 
   const TurnCounts = Stats.map((S) => S.Turns);
@@ -142,8 +166,20 @@ export function RunSimulation(
   const RobberyCount = Stats.filter((S) => S.RobberyTriggered).length;
   const CollapseGames = Stats.filter((S) => S.CollapseCount > 0).length;
   const OverloadGames = Stats.filter((S) => S.OverloadCount > 0).length;
-
   const Avg = (Arr: number[]) => Arr.reduce((A, B) => A + B, 0) / Arr.length;
+
+  const AggCardMap = new Map<string, CardUsageEntry>();
+  if (CollectCardStats) {
+    for (const S of Stats) {
+      for (const [CardId, Stat] of S.CardUsages) {
+        const Entry = AggCardMap.get(CardId) ?? {
+          CardId, Name: CardId, Suit: '', ApCost: 0, Type: '', Uses: 0, Wins: 0,
+        };
+        Entry.Uses += Stat.Uses;
+        AggCardMap.set(CardId, Entry);
+      }
+    }
+  }
 
   return {
     PlayerCount,
@@ -159,6 +195,7 @@ export function RunSimulation(
     AvgFinalMax: Avg(Stats.map((S) => S.FinalPrivateMax)),
     AvgFinalSum: Avg(Stats.map((S) => S.FinalPrivateSum)),
     AvgCardsUsed: Avg(Stats.map((S) => S.CardsUsed)),
+    CardUsageList: Array.from(AggCardMap.values()),
   };
 }
 
@@ -166,28 +203,65 @@ function Main(): void {
   console.log('=== 《第二绿洲》蒙特卡洛平衡性模拟 ===\n');
 
   for (const PlayerCount of [2, 3, 4] as const) {
-    console.log(`--- ${PlayerCount} 人局（激进模式，无卡牌，1000 局）---`);
+    console.log(`--- ${PlayerCount} 人局（无卡牌，1000 局）---`);
     const R = RunSimulation(PlayerCount, 1000, DiceMode.Aggressive, 1, false);
-    console.log(`  平均回合数: ${R.AvgTurns.toFixed(1)} (min=${R.MinTurns}, max=${R.MaxTurns})`);
+    console.log(`  平均回合: ${R.AvgTurns.toFixed(1)} (${R.MinTurns}~${R.MaxTurns})`);
     console.log(`  胜率: ${R.WinRates.map((W) => (W * 100).toFixed(1) + '%').join(', ')}`);
-    console.log(`  抢夺触发率: ${(R.RobberyRate * 100).toFixed(1)}%`);
-    console.log(`  崩坏触发率: ${(R.CollapseRate * 100).toFixed(1)}% (平均 ${R.AvgCollapseCount.toFixed(2)} 次/局)`);
-    console.log(`  开发过度触发率: ${(R.OverloadRate * 100).toFixed(1)}%`);
-    console.log(`  终局最高私有平均: ${R.AvgFinalMax.toFixed(1)}`);
-    console.log(`  终局私有总和平均: ${R.AvgFinalSum.toFixed(1)}`);
+    console.log(`  抢夺率: ${(R.RobberyRate * 100).toFixed(1)}%  崩坏率: ${(R.CollapseRate * 100).toFixed(1)}%  过度率: ${(R.OverloadRate * 100).toFixed(1)}%`);
+    console.log(`  终局最高: ${R.AvgFinalMax.toFixed(1)}  总和: ${R.AvgFinalSum.toFixed(1)}`);
     console.log();
 
-    console.log(`--- ${PlayerCount} 人局（激进模式，含卡牌，100 局）---`);
-    const RC = RunSimulation(PlayerCount, 100, DiceMode.Aggressive, 10000, true);
-    console.log(`  平均回合数: ${RC.AvgTurns.toFixed(1)} (min=${RC.MinTurns}, max=${RC.MaxTurns})`);
+    const GameN = PlayerCount === 2 ? 10000 : 5000;
+    console.log(`--- ${PlayerCount} 人局（含卡牌，${GameN} 局，收集卡牌统计）---`);
+    const RC = RunSimulation(PlayerCount, GameN, DiceMode.Aggressive, 50000 + PlayerCount * 10000, true, true);
+    console.log(`  平均回合: ${RC.AvgTurns.toFixed(1)} (${RC.MinTurns}~${RC.MaxTurns})`);
     console.log(`  胜率: ${RC.WinRates.map((W) => (W * 100).toFixed(1) + '%').join(', ')}`);
-    console.log(`  抢夺触发率: ${(RC.RobberyRate * 100).toFixed(1)}%`);
-    console.log(`  崩坏触发率: ${(RC.CollapseRate * 100).toFixed(1)}% (平均 ${RC.AvgCollapseCount.toFixed(2)} 次/局)`);
-    console.log(`  开发过度触发率: ${(RC.OverloadRate * 100).toFixed(1)}%`);
-    console.log(`  平均使用卡牌: ${RC.AvgCardsUsed.toFixed(1)} 张/局`);
-    console.log(`  终局最高私有平均: ${RC.AvgFinalMax.toFixed(1)}`);
-    console.log(`  终局私有总和平均: ${RC.AvgFinalSum.toFixed(1)}`);
+    console.log(`  抢夺率: ${(RC.RobberyRate * 100).toFixed(1)}%  崩坏率: ${(RC.CollapseRate * 100).toFixed(1)}%  过度率: ${(RC.OverloadRate * 100).toFixed(1)}%`);
+    console.log(`  用牌: ${RC.AvgCardsUsed.toFixed(1)} 张/局  终局最高: ${RC.AvgFinalMax.toFixed(1)}  总和: ${RC.AvgFinalSum.toFixed(1)}`);
     console.log();
+
+    const CardMeta = new Map<string, CardDefinition>(ALL_TAROT_CARDS.map((C) => [C.Id, C]));
+    const Sorted = RC.CardUsageList
+      .filter((U) => U.Uses > 0)
+      .sort((A, B) => B.Uses - A.Uses);
+
+    if (Sorted.length > 0) {
+      const TotalGames = RC.GameCount;
+      const GameLoop = TotalGames * RC.AvgTurns;
+      console.log('  卡牌使用率 TOP 20（按使用次数降序）：');
+      console.log('  ' + 'ID'.padEnd(24) + '花色'.padEnd(6) + 'AP'.padEnd(4) + '使用次数'.padEnd(10) + '每轮率');
+      const TopN = Sorted.slice(0, 20);
+      for (const U of TopN) {
+        const Meta = CardMeta.get(U.CardId);
+        const Name = Meta?.NameCn ?? U.CardId;
+        const Suit = Meta?.Suit ?? '';
+        const Ap = Meta?.ApCost ?? 0;
+        const Rate = GameLoop > 0 ? (U.Uses / GameLoop * 100).toFixed(2) + '%' : '0%';
+        console.log('  ' + Name.padEnd(20) + Suit.padEnd(8) + String(Ap).padEnd(4) + String(U.Uses).padEnd(10) + Rate);
+      }
+      console.log();
+
+      const BySuit = new Map<string, { Uses: number; Count: number }>();
+      for (const U of Sorted) {
+        const Meta = CardMeta.get(U.CardId);
+        const Suit = Meta?.Suit ?? 'Unknown';
+        const E = BySuit.get(Suit) ?? { Uses: 0, Count: 0 };
+        E.Uses += U.Uses;
+        E.Count++;
+        BySuit.set(Suit, E);
+      }
+      console.log('  花色贡献度：');
+      const SuitTotal = Sorted.reduce((S, U) => S + U.Uses, 0);
+      const SuitOrder = ['Major', 'Swords', 'Wands', 'Cups', 'Pentacles'];
+      for (const Suit of SuitOrder) {
+        const E = BySuit.get(Suit);
+        if (E) {
+          const Pct = SuitTotal > 0 ? (E.Uses / SuitTotal * 100).toFixed(1) + '%' : '0%';
+          console.log('    ' + Suit.padEnd(12) + E.Count + '张  使用' + E.Uses + '次  ' + Pct);
+        }
+      }
+      console.log();
+    }
   }
 }
 

@@ -24,6 +24,7 @@ import { GetDifficultyProfile } from './Difficulty';
 import { EventEmitter } from '@/Store/EventEmitter';
 import type { TerritorySnapshot } from '@/Types/Territory';
 import type { DecisionTrace } from './TransparentLog';
+import { EvaluateCardHand } from './CardStrategist';
 
 /**
  * AIDirector 事件
@@ -148,6 +149,11 @@ export class AIDirector extends EventEmitter<AIDirectorEvents> {
     const AI = this._Players[PlayerId]!;
     this.Emit('Thinking', { PlayerId });
 
+    const CardDecisions = EvaluateCardHand(Store, PlayerId, AI.Difficulty);
+    for (const Decision of CardDecisions) {
+      Input.SubmitCard(Decision.InstanceId);
+    }
+
     await this._ThinkDelay(PlayerId);
 
     const SimRandom = CreateSimRandom(
@@ -177,6 +183,11 @@ export class AIDirector extends EventEmitter<AIDirectorEvents> {
   ): Promise<void> {
     const AI = this._Players[PlayerId]!;
     this.Emit('Thinking', { PlayerId });
+
+    const CardDecisions = EvaluateCardHand(Store, PlayerId, AI.Difficulty);
+    for (const Decision of CardDecisions) {
+      Input.SubmitCard(Decision.InstanceId);
+    }
 
     await this._ThinkDelay(PlayerId);
 
