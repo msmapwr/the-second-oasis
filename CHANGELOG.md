@@ -4,6 +4,43 @@
 
 ---
 
+## [1.3.2] — 2026-07-28
+
+> **联机卡牌同步**。多人游戏中卡牌系统完整可用——服务端权威裁决、AI 掉线托管升级、观战者可见所有手牌。
+
+### WebSocket 协议扩展
+
+- **USE_CARD** (C→S)：客户端打出卡牌，携带 `instanceId` + `targetPlayerId`
+- **CARD_RESULT** (S→C)：服务端广播卡牌使用结果（`playerId / cardId / cardType / snapshot / currentPlayer`），全量同步至所有玩家和观战者
+- **COUNTER_WINDOW** (S→C)：反制窗口通知（`triggerType: Robbery|Collapse / timeoutMs / eligiblePlayers`），预留 UI 集成
+- **HAND_UPDATE** (S→C)：手牌变更广播（`playerId / cardCount`）
+- `ClientMsg.UseCard()` 消息工厂函数
+
+### 服务端权威 CardEngine
+
+- `GameRoom.HandleUseCard`：验证身份 + 游戏状态 → 调用 `Store.UseCard` → 广播 `CARD_RESULT`
+- 卡牌操作与回合操作同级别的服务端权威，防修改手牌、防窥探牌库
+- `NetworkGameStore.UseCardAsync`：`SendAndWait` 回合同步式代理（与 `PlayTurnAsync` 相同模式）；`UseCard` 同步方法保留本地回退
+- `ListenForRemoteTurns` 新增 `CARD_RESULT` 和 `HAND_UPDATE` 监听器
+
+### AI 掉线托管升级
+
+- `AIController` 新增 `GetCardDecisions` 接口，集成 `CardStrategist` 的 7 类优先级评估
+- 断线 AI 接管时先评估手牌 → 打出最优牌 → 再选模式掷骰（与本地 AI 行为一致）
+- 托管难度固定为 3（Advanced），确保合理决策
+
+### 观战者体验
+
+- `CARD_RESULT` 全量广播至房间内的 spectators 数组
+- 观战者客户端通过 `GetCardHand` 可查看所有玩家的手牌正面
+- 牌库/弃牌堆数据对观战者只读，不可操作
+
+### 验证
+
+- `tsc --noEmit` 零错误 · 340/344 通过
+
+---
+
 ## [1.3.1] — 2026-07-28
 
 > **卡牌音效与动画**。6 种程序化音效 + 反制闪光 + 洗牌动画 + 恒常到期脉冲 + 独立可访问性开关。
