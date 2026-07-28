@@ -25,7 +25,14 @@ export type SoundPreset =
   | 'Collapse'
   | 'LaunchSuccess'
   | 'LaunchFail'
-  | 'GameOver';
+  | 'GameOver'
+  | 'CardFlip'
+  | 'CardCommand'
+  | 'CardCounter'
+  | 'CardConstant'
+  | 'CardConstantExpire'
+  | 'CardShuffle'
+  | 'CounterTrigger';
 
 /** 外部资源建议：哪些音效可考虑替换为采样 */
 export const EXTERNAL_SOUND_ADVICE: {

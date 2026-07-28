@@ -26,6 +26,8 @@ export type StoreEvents = {
   Tiebreaker: { Round: TiebreakerRound; Snapshot: TerritorySnapshot };
   GameOver: GameResult;
   RoundChange: { RoundIndex: number; FirstPlayerIndex: PlayerId };
+  CardUsed: { CardType: string; Snapshot: TerritorySnapshot };
+  DeckShuffled: void;
 }
 
 export interface IGameStore {
@@ -237,6 +239,9 @@ export class GameStore extends EventEmitter<StoreEvents> implements IGameStore {
   UseCard(PlayerId: PlayerId, InstanceId: number, TargetPlayerId: PlayerId | null): CardPlayedRecord | null {
     const Result = this._State.UseCard(PlayerId, InstanceId, TargetPlayerId);
     this.Emit('Snapshot', this._State.Snapshot);
+    if (Result) {
+      this.Emit('CardUsed', { CardType: Result.CardType, Snapshot: this._State.Snapshot });
+    }
     return Result;
   }
 

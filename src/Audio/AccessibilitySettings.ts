@@ -14,10 +14,14 @@ import { EventEmitter, type Listener } from '@/Store/EventEmitter';
 
 const STORAGE_MUTED = 'oasis_muted';
 const STORAGE_REDUCED_MOTION = 'oasis_reduced_motion';
+const STORAGE_CARD_AUDIO = 'oasis_card_audio';
+const STORAGE_CARD_ANIM = 'oasis_card_anim';
 
 export type AccessibilityEvents = {
   MutedChanged: boolean;
   ReducedMotionChanged: boolean;
+  CardAudioChanged: boolean;
+  CardAnimChanged: boolean;
 };
 
 /**
@@ -57,11 +61,15 @@ function _WriteBool(Key: string, Value: boolean): void {
 export class AccessibilitySettings extends EventEmitter<AccessibilityEvents> {
   private _Muted: boolean;
   private _ReducedMotion: boolean;
+  private _CardAudio: boolean;
+  private _CardAnim: boolean;
 
   constructor() {
     super();
     this._Muted = _ReadBool(STORAGE_MUTED, false);
     this._ReducedMotion = _ReadBool(STORAGE_REDUCED_MOTION, false);
+    this._CardAudio = _ReadBool(STORAGE_CARD_AUDIO, true);
+    this._CardAnim = _ReadBool(STORAGE_CARD_ANIM, true);
   }
 
   get Muted(): boolean {
@@ -84,6 +92,22 @@ export class AccessibilitySettings extends EventEmitter<AccessibilityEvents> {
     this._ReducedMotion = Val;
     _WriteBool(STORAGE_REDUCED_MOTION, Val);
     this.Emit('ReducedMotionChanged', Val);
+  }
+
+  get CardAudio(): boolean { return this._CardAudio; }
+  SetCardAudio(Val: boolean): void {
+    if (this._CardAudio === Val) return;
+    this._CardAudio = Val;
+    _WriteBool(STORAGE_CARD_AUDIO, Val);
+    this.Emit('CardAudioChanged', Val);
+  }
+
+  get CardAnim(): boolean { return this._CardAnim; }
+  SetCardAnim(Val: boolean): void {
+    if (this._CardAnim === Val) return;
+    this._CardAnim = Val;
+    _WriteBool(STORAGE_CARD_ANIM, Val);
+    this.Emit('CardAnimChanged', Val);
   }
 
   /**

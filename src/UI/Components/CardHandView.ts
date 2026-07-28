@@ -1,9 +1,9 @@
 /**
  * src/UI/Components/CardHandView.ts
- * 操作类型：修改
+ * 操作类型：重写
  *
- * 技能卡罗牌手牌栏——底部侧边定位，跟随当前玩家切换
- * 单机：当前玩家回合显示其手牌，AI 回合显示卡背
+ * 技能卡手牌栏——新拟态风格，底部侧边定位，跟随当前玩家切换
+ * 单机：当前玩家回合显示手牌，AI 回合显示卡背
  * 观战：显示所有人手牌
  * 联机：仅显示自己手牌
  */
@@ -18,19 +18,11 @@ import { PlayerPalette } from '@/Store/PlayerPalette';
 export type CardViewMode = 'single' | 'spectator' | 'multiplayer';
 
 const SUIT_COLORS: Record<string, string> = {
-  Major: '#F0C040',
-  Swords: '#60A5FA',
-  Wands: '#E05555',
-  Cups: '#0ECCCE',
-  Pentacles: '#3CC080',
+  Major: '#F0C040', Swords: '#60A5FA', Wands: '#E05555', Cups: '#0ECCCE', Pentacles: '#3CC080',
 };
 
 const SUIT_SYMBOLS: Record<string, string> = {
-  Major: '\u2605',
-  Swords: '\uD83D\uDDE1',
-  Wands: '\uD83E\uDE84',
-  Cups: '\uD83C\uDFC6',
-  Pentacles: '\uD83E\uDE99',
+  Major: '\u2605', Swords: '\uD83D\uDDE1', Wands: '\uD83E\uDE84', Cups: '\uD83C\uDFC6', Pentacles: '\uD83E\uDE99',
 };
 
 export class CardHandView extends Component {
@@ -40,15 +32,13 @@ export class CardHandView extends Component {
   private readonly _OnPlayCard: (InstanceId: number) => void;
   private readonly _IsAI: (PlayerId: PlayerId) => boolean;
   private _CleanupFns: Array<() => void> = [];
+  private _CardListeners: Array<() => void> = [];
   private _CardsRow!: HTMLElement;
-  private _Tooltip!: HTMLElement;
+  private _Tooltip: HTMLElement | null = null;
 
   constructor(
-    Store: IGameStore,
-    Mode: CardViewMode,
-    MyPlayerId: PlayerId,
-    IsAI: (PlayerId: PlayerId) => boolean,
-    OnPlayCard: (InstanceId: number) => void,
+    Store: IGameStore, Mode: CardViewMode, MyPlayerId: PlayerId,
+    IsAI: (Pid: PlayerId) => boolean, OnPlayCard: (Id: number) => void,
   ) {
     super();
     this._Store = Store;
@@ -61,11 +51,7 @@ export class CardHandView extends Component {
   Mount(Parent: HTMLElement): void {
     const Container = El({
       Tag: 'div',
-      Style: `
-        position:fixed;bottom:90px;left:16px;
-        display:flex;flex-direction:column;align-items:flex-start;
-        z-index:50;pointer-events:none;
-      `,
+      Style: 'position:fixed;bottom:90px;left:16px;display:flex;flex-direction:column;align-items:flex-start;z-index:50;pointer-events:none;',
     });
     Container.id = 'card-hand-container';
 
@@ -75,15 +61,7 @@ export class CardHandView extends Component {
       Parent: Container,
     });
 
-    this._Tooltip = El({
-      Tag: 'div',
-      Class: 'card-tooltip',
-      Parent: Container,
-    });
-
-    this._CleanupFns.push(
-      this._Store.On('Snapshot', () => this._Refresh()),
-    );
+    this._CleanupFns.push(this._Store.On('Snapshot', () => this._Refresh()));
 
     Parent.appendChild(Container);
     this.SetRoot(Container);
@@ -92,20 +70,24 @@ export class CardHandView extends Component {
 
   protected _OnUnmount(): void {
     for (const Fn of this._CleanupFns) Fn();
+    for (const Fn of this._CardListeners) Fn();
     this._CleanupFns = [];
+    this._CardListeners = [];
+    this._HideTooltip();
+    if (this._Tooltip) { this._Tooltip.remove(); this._Tooltip = null; }
   }
 
   private _CurrentViewPlayer(): PlayerId | null {
-    const CurrPlayer = this._Store.CurrentPlayer;
+    const Curr = this._Store.CurrentPlayer;
     if (this._Mode === 'multiplayer') return this._MyPlayerId;
     if (this._Mode === 'spectator') return null;
-    return CurrPlayer;
+    return Curr;
   }
 
-  private _ShouldShowFace(PlayerId: PlayerId): boolean {
+  private _ShouldShowFace(Pid: PlayerId): boolean {
     if (this._Mode === 'spectator') return true;
-    if (this._Mode === 'multiplayer') return PlayerId === this._MyPlayerId;
-    return !this._IsAI(PlayerId);
+    if (this._Mode === 'multiplayer') return Pid === this._MyPlayerId;
+    return !this._IsAI(Pid);
   }
 
   private _Refresh(): void {
@@ -115,6 +97,8 @@ export class CardHandView extends Component {
     const Phase = this._Store.Phase;
     const IsCardPhase = Phase === GamePhase.SelectMode || Phase === GamePhase.LaunchPhase;
 
+    this._HideTooltip();
+
     if (!this._Store.CardEnabled || !IsCardPhase) {
       this._Root.style.display = 'none';
       return;
@@ -122,6 +106,8 @@ export class CardHandView extends Component {
 
     this._Root.style.display = 'flex';
     Clear(this._CardsRow);
+    for (const Fn of this._CardListeners) Fn();
+    this._CardListeners = [];
 
     if (TargetPlayer !== null) {
       this._RenderPlayerCards(TargetPlayer);
@@ -139,18 +125,15 @@ export class CardHandView extends Component {
     const ShowFace = this._ShouldShowFace(PlayerId);
     const Label = PlayerPalette.LabelShort(PlayerId);
 
-    if (!ShowFace && Hand.length > 0 && this._Mode === 'single') {
-      const BackEl = El({
-        Tag: 'div',
-        Class: 'card-face card-back',
-        Style: 'width:100px;padding:8px;',
-        Parent: this._CardsRow,
+    if (!ShowFace && this._Mode === 'single') {
+      const Back = El({
+        Tag: 'div', Class: 'card-face card-back', Parent: this._CardsRow,
+        Style: 'width:100px;height:auto;min-width:unset;padding:10px 8px;border-color:#A68A3C;opacity:0.6;',
       });
-      BackEl.innerHTML =
-        '<div style="font-size:20px;text-align:center;">\uD83C\uDCCF</div>' +
+      Back.innerHTML =
+        '<div style="font-size:22px;text-align:center;opacity:0.5;">\uD83C\uDCCF</div>' +
         '<div style="font-size:10px;text-align:center;color:var(--text-muted);margin-top:4px;">' +
-          Label + ' \u00D7' + Hand.length +
-        '</div>';
+        Label + ' \u00D7' + Hand.length + '</div>';
       return;
     }
 
@@ -164,13 +147,12 @@ export class CardHandView extends Component {
         Tag: 'div',
         Class: 'card-face ' + Def.Rarity.toLowerCase() +
           (CanPlay ? ' card-playable' : ' card-locked'),
-        Style: 'border-color:' + SuitColor + ';',
+        Style: CanPlay ? 'border-left:3px solid ' + SuitColor + ';' : '',
         Parent: this._CardsRow,
       });
 
-      const Effect = Def.EffectDescription.length > 20
-        ? Def.EffectDescription.slice(0, 20) + '\u2026'
-        : Def.EffectDescription;
+      const Effect = Def.EffectDescription.length > 18
+        ? Def.EffectDescription.slice(0, 18) + '\u2026' : Def.EffectDescription;
 
       CardEl.innerHTML =
         '<div class="card-suit">' + (SUIT_SYMBOLS[Def.Suit] ?? '?') + '</div>' +
@@ -179,30 +161,20 @@ export class CardHandView extends Component {
         '<div class="card-effect">' + Effect + '</div>';
 
       if (ShowFace) {
-        CardEl.setAttribute('data-card-id', Def.Id);
-        CardEl.setAttribute('data-apcost', String(Def.ApCost));
-        CardEl.setAttribute('data-type', Def.Type);
-        CardEl.setAttribute('data-keywords', Def.Keywords);
-        CardEl.setAttribute('data-lore', Def.Lore);
-        CardEl.setAttribute('data-full-effect', Def.EffectDescription);
-
-        this._CleanupFns.push(On(CardEl, 'mouseenter', () => {
-          this._ShowTooltip(CardEl, Def, SuitColor, CanPlay);
+        this._CardListeners.push(On(CardEl, 'mouseenter', () => {
+          this._ShowTooltip(CardEl, Def, SuitColor);
         }));
-        this._CleanupFns.push(On(CardEl, 'mouseleave', () => {
+        this._CardListeners.push(On(CardEl, 'mouseleave', () => {
           this._HideTooltip();
         }));
       }
 
       if (CanPlay) {
-        const BtnLabel = Def.Type === CardType.Counter ? '\u26A1' : '\u25B6';
-        const PlayBtn = El({
-          Tag: 'button',
-          Class: 'card-play-btn-mini',
-          Text: BtnLabel,
-          Parent: CardEl,
+        const Btn = El({
+          Tag: 'button', Class: 'card-play-btn-mini', Parent: CardEl,
+          Text: Def.Type === CardType.Counter ? '\u26A1' : '\u25B6',
         });
-        this._CleanupFns.push(On(PlayBtn, 'click', (E: Event) => {
+        this._CardListeners.push(On(Btn, 'click', (E: Event) => {
           E.stopPropagation();
           this._OnPlayCard(Card.InstanceId);
         }));
@@ -210,46 +182,78 @@ export class CardHandView extends Component {
     }
   }
 
+  private _GetTooltip(): HTMLElement {
+    if (!this._Tooltip) {
+      this._Tooltip = El({
+        Tag: 'div', Class: 'card-detail-tooltip',
+      });
+      document.body.appendChild(this._Tooltip);
+    }
+    return this._Tooltip;
+  }
+
   private _ShowTooltip(
     Source: HTMLElement,
-    Def: { NameCn: string; NameEn: string; ApCost: number; EffectDescription: string; Keywords: string; Lore: string; Type: string },
+    Def: { NameCn: string; NameEn: string; ApCost: number; EffectDescription: string; Keywords: string; Lore: string; Type: string; Suit: string },
     SuitColor: string,
-    _CanPlay: boolean,
   ): void {
-    if (!this._Tooltip) return;
-
+    const Tip = this._GetTooltip();
     const Rect = Source.getBoundingClientRect();
-    const Left = Math.min(Rect.left + Rect.width + 12, window.innerWidth - 310);
+    const TW = 300;
+    const TH_MIN = 200;
 
-    this._Tooltip.style.cssText =
-      'display:block;' +
-      'position:fixed;' +
-      'left:' + Left + 'px;' +
-      'top:' + Math.max(16, Rect.top - 40) + 'px;' +
-      'width:280px;' +
-      'background:linear-gradient(160deg,#0F1923,#111D2E);' +
-      'border:2px solid ' + SuitColor + ';' +
-      'border-radius:8px;' +
-      'padding:14px 16px;' +
-      'z-index:200;' +
-      'box-shadow:0 0 20px ' + SuitColor + '44, 0 8px 32px rgba(0,0,0,.6);' +
-      'pointer-events:none;';
+    let Left = Rect.right + 14;
+    let Top = Rect.top - 20;
+
+    if (Left + TW > window.innerWidth - 8) {
+      Left = Rect.left - TW - 14;
+    }
+    if (Left < 8) Left = 8;
+
+    const ViewH = window.innerHeight;
+    if (Top + TH_MIN > ViewH - 8) {
+      Top = ViewH - TH_MIN - 8;
+    }
+    if (Top < 8) Top = 8;
 
     const TypeLabel: Record<string, string> = {
       Command: '\u6307\u4EE4', Counter: '\u53CD\u5236', Constant: '\u6052\u5E38',
     };
 
-    this._Tooltip.innerHTML =
-      '<div style="font-size:16px;font-weight:700;color:#E0EAF5;margin-bottom:2px;">' + Def.NameCn + '</div>' +
-      '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">' + Def.NameEn + '</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
-        '<span style="font-size:10px;padding:2px 8px;background:rgba(255,255,255,.08);border-radius:3px;">' +
-          (TypeLabel[Def.Type] ?? Def.Type) + '</span>' +
-        '<span style="font-size:12px;font-weight:700;color:' + SuitColor + ';">' + Def.ApCost + ' AP</span>' +
+    Tip.style.cssText =
+      'display:block;position:fixed;z-index:9999;pointer-events:none;' +
+      'left:' + Left + 'px;top:' + Top + 'px;width:' + TW + 'px;' +
+      'background:var(--nm-bg);box-shadow:var(--nm-raised-lg);' +
+      'border-radius:var(--nm-radius-container);' +
+      'padding:16px 18px;' +
+      'border-left:4px solid ' + SuitColor + ';';
+
+    Tip.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
+        '<span style="font-size:24px;">' + (SUIT_SYMBOLS[Def.Suit] ?? '?') + '</span>' +
+        '<div>' +
+          '<div style="font-size:16px;font-weight:700;color:var(--text);">' + Def.NameCn + '</div>' +
+          '<div style="font-size:11px;color:var(--text-dim);">' + Def.NameEn + '</div>' +
+        '</div>' +
       '</div>' +
-      '<div style="font-size:12px;color:#C0D0E0;line-height:1.6;margin-bottom:8px;">' + Def.EffectDescription + '</div>' +
-      '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">' + Def.Keywords + '</div>' +
-      '<div style="font-size:10px;color:rgba(255,255,255,.25);line-height:1.5;font-style:italic;">' + Def.Lore + '</div>';
+      '<div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">' +
+        '<span style="display:inline-block;padding:3px 10px;border-radius:var(--nm-radius-element);' +
+          'background:var(--nm-bg);box-shadow:var(--nm-pressed);font-size:10px;color:var(--text-dim);">' +
+          (TypeLabel[Def.Type] ?? Def.Type) + '</span>' +
+        '<span style="display:inline-block;padding:3px 10px;border-radius:var(--nm-radius-element);' +
+          'background:var(--nm-bg);box-shadow:var(--nm-pressed);font-size:10px;color:var(--text-dim);">' +
+          Def.Suit + '</span>' +
+        '<span style="font-size:14px;font-weight:700;color:' + SuitColor + ';margin-left:auto;">' +
+          Def.ApCost + ' AP</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text);line-height:1.65;margin-bottom:10px;' +
+        'padding:10px;border-radius:var(--nm-radius-element);' +
+        'background:var(--nm-bg);box-shadow:var(--nm-pressed);">' +
+        Def.EffectDescription + '</div>' +
+      '<div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">' +
+        Def.Keywords + '</div>' +
+      '<div style="font-size:10px;color:var(--text-dim);opacity:0.5;line-height:1.5;font-style:italic;">' +
+        Def.Lore + '</div>';
   }
 
   private _HideTooltip(): void {

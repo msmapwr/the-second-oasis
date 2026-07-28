@@ -4,6 +4,43 @@
 
 ---
 
+## [1.3.1] — 2026-07-28
+
+> **卡牌音效与动画**。6 种程序化音效 + 反制闪光 + 洗牌动画 + 恒常到期脉冲 + 独立可访问性开关。
+
+### 程序化卡牌音效
+
+- **CardFlip**：纸牌翻动声（白噪声 40ms + 600Hz 正弦波 60ms）
+- **CardCommand**：清脆双音敲击（880Hz + 1100Hz 三角波叠奏）
+- **CardCounter**：金属碰撞感（220Hz + 330Hz 方波 + 白噪声）
+- **CardConstant**：持续低频嗡鸣（C 大三和弦 261/329/392Hz 正弦波 0.6s）
+- **CardConstantExpire**：消散回声（降序和弦 392→329→261Hz + 噪声衰减）
+- **CardShuffle**：12 次短促噪声脉冲模拟纸牌洗动 + 300Hz 收束音
+- **CounterTrigger**：反制触发警示音（110Hz 锯齿波 + 440Hz 尖峰 + 白噪声）
+
+### 视觉动画
+
+- **反制触发红色闪光**：`counter-flash-overlay` 径向红色渐变覆盖层，0.6s 渐消
+- **洗牌通知动画**：`shuffle-notify` 辉光文字「🃏 牌库已洗回」，1.2s 淡入上浮淡出
+- **恒常到期脉冲**：`card-expire-pulse` ripple shadow 脉冲，0.8s 周期，通过 `[data-expiring]` 属性触发
+
+### 事件系统
+
+- `GameStore` 新增 `CardUsed` 事件（携带 CardType），`UseCard` 成功后自动发射
+- `AnimationCoordinator` 订阅 `CardUsed`，按指令/反制/恒常/默认分发音效
+- `ShowCounterFlash()` / `ShowShuffleNotify()` 公共方法供外部调用
+
+### 可访问性
+
+- `AccessibilitySettings` 新增 `CardAudio` 和 `CardAnim` 独立开关（默认开启，localStorage 持久化）
+- 两项均可通过设置面板独立控制，不受全局静音/减弱动效影响
+
+### 验证
+
+- `tsc --noEmit` 零错误 · 340/344 通过
+
+---
+
 ## [1.3.0] — 2026-07-28
 
 > **卡牌系统全栈完工**。剩余高优先级效果落地 + 20000 局蒙特卡洛基线 + AI 学会使用技能卡牌。

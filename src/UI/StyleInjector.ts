@@ -1699,6 +1699,52 @@ html, body {
   display: none;
 }
 
+.card-detail-tooltip {
+  display: none;
+  font-family: var(--font-body);
+  transition: opacity 0.12s ease;
+}
+
+@keyframes counter-flash-in {
+  0% { opacity: 0; }
+  15% { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+.counter-flash-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(224, 80, 80, 0.4), transparent 70%);
+  animation: counter-flash-in 0.6s ease-out forwards;
+}
+
+@keyframes shuffle-text-in {
+  0% { opacity: 0; transform: translateY(20px); }
+  20% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+.shuffle-notify {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); z-index: 10000;
+  pointer-events: none;
+  font-size: 18px; font-weight: 700;
+  color: var(--oasis, #00E5FF);
+  text-shadow: 0 0 12px var(--oasis, #00E5FF);
+  animation: shuffle-text-in 1.2s ease-out forwards;
+  font-family: var(--font-body);
+}
+
+@keyframes card-expire-pulse {
+  0%, 100% { box-shadow: var(--nm-raised-sm); }
+  50% { box-shadow: 0 0 8px rgba(255,200,0,.3), var(--nm-raised-sm); }
+}
+
+[data-expiring="true"].card-face {
+  animation: card-expire-pulse 0.8s ease-in-out infinite;
+}
+
 .card-cost-hint {
   position: absolute;
   bottom: 4px;

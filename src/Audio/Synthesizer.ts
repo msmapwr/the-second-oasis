@@ -232,6 +232,27 @@ export class Synthesizer {
         case 'GameOver':
           this._GameOver(Ctx, Dest);
           break;
+        case 'CardFlip':
+          this._CardFlip(Ctx, Dest);
+          break;
+        case 'CardCommand':
+          this._CardCommand(Ctx, Dest);
+          break;
+        case 'CardCounter':
+          this._CardCounter(Ctx, Dest);
+          break;
+        case 'CardConstant':
+          this._CardConstant(Ctx, Dest);
+          break;
+        case 'CardConstantExpire':
+          this._CardConstantExpire(Ctx, Dest);
+          break;
+        case 'CardShuffle':
+          this._CardShuffle(Ctx, Dest);
+          break;
+        case 'CounterTrigger':
+          this._CounterTrigger(Ctx, Dest);
+          break;
         default: {
           const _Exhaustive: never = Preset;
           void _Exhaustive;
@@ -379,5 +400,61 @@ export class Synthesizer {
     [392, 494, 587, 784].forEach((Freq) => {
       _CreateScheduledOsc(Ctx, Dest, 'sine', Freq, Now, 1.7, 0.12);
     });
+  }
+
+  private _CardFlip(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    _PlayNoise(Ctx, Dest, 0.12, 0.005, 0.04);
+    _PlayTone(Ctx, Dest, { Freq: 600, Peak: 0.1, AttackSec: 0.003, DecaySec: 0.06 });
+  }
+
+  private _CardCommand(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    const Now = Ctx.currentTime;
+    _CreateScheduledOsc(Ctx, Dest, 'triangle', 880, Now, 0.1, 0.15);
+    _CreateScheduledOsc(Ctx, Dest, 'triangle', 1100, Now + 0.04, 0.1, 0.12);
+    _PlayTone(Ctx, Dest, { Freq: 660, Peak: 0.08, AttackSec: 0.01, DecaySec: 0.2 });
+  }
+
+  private _CardCounter(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    const Now = Ctx.currentTime;
+    _CreateScheduledOsc(Ctx, Dest, 'square', 220, Now, 0.12, 0.1);
+    _CreateScheduledOsc(Ctx, Dest, 'square', 330, Now + 0.05, 0.12, 0.1);
+    _PlayNoise(Ctx, Dest, 0.08, 0.005, 0.04);
+  }
+
+  private _CardConstant(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    const Now = Ctx.currentTime;
+    _CreateScheduledOsc(Ctx, Dest, 'sine', 261, Now, 0.6, 0.08);
+    _CreateScheduledOsc(Ctx, Dest, 'sine', 329, Now, 0.6, 0.06);
+    _CreateScheduledOsc(Ctx, Dest, 'sine', 392, Now, 0.6, 0.04);
+  }
+
+  private _CardConstantExpire(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    const Now = Ctx.currentTime;
+    _CreateScheduledOsc(Ctx, Dest, 'sine', 392, Now, 0.3, 0.06);
+    _CreateScheduledOsc(Ctx, Dest, 'sine', 329, Now + 0.1, 0.3, 0.05);
+    _CreateScheduledOsc(Ctx, Dest, 'sine', 261, Now + 0.2, 0.4, 0.04);
+    _PlayNoise(Ctx, Dest, 0.06, 0.01, 0.15);
+  }
+
+  private _CardShuffle(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    for (let I = 0; I < 12; I++) {
+      _PlayNoise(Ctx, Dest, 0.04, 0.002, 0.02);
+    }
+    _PlayTone(Ctx, Dest, { Freq: 300, Peak: 0.1, AttackSec: 0.02, DecaySec: 0.3 });
+  }
+
+  private _CounterTrigger(Ctx: AudioContext, Dest: AudioNode): void {
+    if (!_IsCtxValid(Ctx)) return;
+    const Now = Ctx.currentTime;
+    _CreateScheduledOsc(Ctx, Dest, 'sawtooth', 110, Now, 0.25, 0.12);
+    _CreateScheduledOsc(Ctx, Dest, 'sawtooth', 165, Now + 0.08, 0.2, 0.1);
+    _PlayNoise(Ctx, Dest, 0.15, 0.005, 0.1);
+    _PlayTone(Ctx, Dest, { Freq: 440, Peak: 0.12, AttackSec: 0.01, DecaySec: 0.15 });
   }
 }

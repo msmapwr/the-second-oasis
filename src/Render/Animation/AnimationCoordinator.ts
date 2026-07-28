@@ -57,6 +57,7 @@ export class AnimationCoordinator {
       Store.On('Turn', ({ Result }) => this._OnTurn(Result)),
       Store.On('Tiebreaker', ({ Round }) => this._OnTiebreaker(Round)),
       Store.On('GameOver', () => this._Audio.Play('GameOver')),
+      Store.On('CardUsed', ({ CardType }) => this._OnCardUsed(CardType)),
     );
   }
 
@@ -193,5 +194,38 @@ export class AnimationCoordinator {
         Type,
       ),
     );
+  }
+
+  private _OnCardUsed(CardType: string): void {
+    switch (CardType) {
+      case 'Command':
+        this._Audio.Play('CardCommand');
+        break;
+      case 'Counter':
+        this._Audio.Play('CardCounter');
+        break;
+      case 'Constant':
+        this._Audio.Play('CardConstant');
+        break;
+      default:
+        this._Audio.Play('CardFlip');
+    }
+  }
+
+  ShowCounterFlash(): void {
+    this._Audio.Play('CounterTrigger');
+    const Flash = document.createElement('div');
+    Flash.className = 'counter-flash-overlay';
+    document.body.appendChild(Flash);
+    setTimeout(() => Flash.remove(), 600);
+  }
+
+  ShowShuffleNotify(): void {
+    this._Audio.Play('CardShuffle');
+    const Note = document.createElement('div');
+    Note.className = 'shuffle-notify';
+    Note.textContent = '\uD83C\uDCCF \u724C\u5E93\u5DF2\u6D17\u56DE';
+    document.body.appendChild(Note);
+    setTimeout(() => Note.remove(), 1200);
   }
 }
