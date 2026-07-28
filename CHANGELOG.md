@@ -4,6 +4,23 @@
 
 ---
 
+## [1.2.2] — 2026-07-28
+
+> **传统模式开关**。乘员配置界面新增模式选择，一键切换无卡牌的经典规则。
+
+### 游戏模式
+
+- **现代模式**（默认）：完整 v1.2 变体规则 + 78 张技能卡牌系统
+- **传统模式**：纯基础规则，`EnableSkillCards: false`，不发牌、不显示卡牌栏、无 AP 消耗
+- 主菜单配��弹窗中种子行之后新增分段按钮「⚡ 现代模式 / 📜 传统模式」，点火时传入 `StartConfig.UseVariant`
+- `AppController._PlayGame` 根据 `UseVariant` 分支调用 `CreateVariantConfig` 或 `CreateDefaultConfig`
+
+### 验证
+
+- `tsc --noEmit` 零错误 · 338/342 通过
+
+---
+
 ## [1.2.1] — 2026-07-28
 
 > **控制台月球视口重制 + 退出/抢夺修复 + favicon**。

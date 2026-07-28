@@ -14,6 +14,7 @@ export interface StartConfig {
   readonly PlayerCount: 2 | 3 | 4;
   readonly Seed: number;
   readonly Players: PlayerConfig[];
+  readonly UseVariant: boolean;
 }
 
 export type MainMenuAction =
@@ -36,6 +37,7 @@ export class MainMenu extends Component {
   private _CleanupFns: (() => void)[] = [];
   private _PlayerConfigs: PlayerConfig[] = [];
   private _ConfigDialog: HTMLElement | null = null;
+  private _UseVariant: boolean = true;
   private readonly _OnRequestSettings: () => void;
 
   constructor(OnAction: (Action: MainMenuAction) => void, OnRequestSettings?: () => void) {
@@ -257,6 +259,53 @@ export class MainMenu extends Component {
       SeedInput.value = String(this._RandomSeed());
     }));
 
+    const ModeRow = El({
+      Tag: 'div',
+      Parent: Card,
+      Style: 'display:flex;gap:8px;align-items:center;margin-top:10px;',
+    });
+    El({
+      Tag: 'span',
+      Parent: ModeRow,
+      Style: 'font-size:12px;color:var(--text-dim);flex-shrink:0;',
+      Text: '游戏模式',
+    });
+    const ModeSeg = El({
+      Tag: 'div',
+      Parent: ModeRow,
+      Class: 'seg-group',
+    });
+    const ModernBtn = El({
+      Tag: 'button',
+      Class: 'seg-btn' + (this._UseVariant ? ' sel' : ''),
+      Parent: ModeSeg,
+      Text: '⚡ 现代模式',
+    }) as HTMLButtonElement;
+    const ClassicBtn = El({
+      Tag: 'button',
+      Class: 'seg-btn' + (this._UseVariant ? '' : ' sel'),
+      Parent: ModeSeg,
+      Text: '📜 传统模式',
+    }) as HTMLButtonElement;
+
+    const UpdateModeSelection = () => {
+      if (this._UseVariant) {
+        ModernBtn.classList.add('sel');
+        ClassicBtn.classList.remove('sel');
+      } else {
+        ClassicBtn.classList.add('sel');
+        ModernBtn.classList.remove('sel');
+      }
+    };
+    this._CleanupFns.push(On(ModernBtn, 'click', () => {
+      this._UseVariant = true;
+      UpdateModeSelection();
+    }));
+    this._CleanupFns.push(On(ClassicBtn, 'click', () => {
+      this._UseVariant = false;
+      UpdateModeSelection();
+    }));
+
     const Actions = El({
       Tag: 'div',
       Parent: Card,
@@ -281,6 +330,7 @@ export class MainMenu extends Component {
           PlayerCount: this._SelectedCount,
           Seed,
           Players: this._PlayerConfigs.slice(0, this._SelectedCount),
+          UseVariant: this._UseVariant,
         },
       });
     }));

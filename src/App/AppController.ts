@@ -13,7 +13,7 @@
  */
 import { GameStore } from '@/Store/GameStore';
 import type { IGameStore } from '@/Store/GameStore';
-import { CreateVariantConfig } from '@/Types/GameConfig';
+import { CreateVariantConfig, CreateDefaultConfig } from '@/Types/GameConfig';
 import { GamePhase } from '@/Types/GamePhase';
 import type { DiceMode } from '@/Types/Dice';
 import type { LaunchResult } from '@/Types/Launch';
@@ -275,6 +275,7 @@ export class AppController {
           PlayerCount: PlayerCount as 2 | 3 | 4,
           Seed,
           Players: this._DefaultPlayers(PlayerCount as 2 | 3 | 4),
+          UseVariant: true,
         },
         Ref.NetStore,
       );
@@ -297,7 +298,9 @@ export class AppController {
   private async _PlayGame(Config: StartConfig, ExistingStore?: IGameStore): Promise<void> {
     PlayerPalette.SetConfig(Config.Players);
     const Store = ExistingStore ?? new GameStore(
-      CreateVariantConfig(Config.PlayerCount, Config.Seed),
+      Config.UseVariant
+        ? CreateVariantConfig(Config.PlayerCount, Config.Seed)
+        : CreateDefaultConfig(Config.PlayerCount, Config.Seed),
     );
     const Input = new InputGate();
     this._CurrentInput = Input;
