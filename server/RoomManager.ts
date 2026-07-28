@@ -277,6 +277,27 @@ export class RoomManager {
   }
 
   /**
+   * 获取所有 Playing 阶段的房间列表（供大厅展示观战入口）
+   */
+  GetPlayingRooms(): Array<{ roomCode: string; phase: string; playerCount: number; maxPlayers: number; hostNickname: string; spectatorCount: number }> {
+    const Result: Array<{ roomCode: string; phase: string; playerCount: number; maxPlayers: number; hostNickname: string; spectatorCount: number }> = [];
+    for (const [Code, Room] of this._Rooms) {
+      if (Room.Phase === 'Playing') {
+        const Host = Room.Players.find((P) => P.IsHost);
+        Result.push({
+          roomCode: Code,
+          phase: Room.Phase,
+          playerCount: Room.Players.length,
+          maxPlayers: Room.MaxPlayers,
+          hostNickname: Host?.Nickname ?? '未知',
+          spectatorCount: Room.Spectators.length,
+        });
+      }
+    }
+    return Result;
+  }
+
+  /**
    * 销毁房间管理器（停止清理定时器）
    */
   Dispose(): void {

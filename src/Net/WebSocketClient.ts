@@ -54,7 +54,9 @@ const RequestResponseMap: Partial<Record<ClientMessage['type'], ServerMessageTyp
   PLAY_TURN: 'TURN_RESULT',
   ATTEMPT_LAUNCH: 'LAUNCH_RESULT',
   RUN_TIEBREAKER: 'TIEBREAKER_RESULT',
+  USE_CARD: 'CARD_RESULT',
   SPECTATE_ROOM: 'SPECTATOR_JOINED',
+  GET_ROOM_LIST: 'ROOM_LIST',
 };
 
 // ===== 类型定义 =====

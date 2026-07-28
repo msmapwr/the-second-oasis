@@ -26,6 +26,7 @@ export interface GameStageViewConfig {
   readonly Mode?: CardViewMode;
   readonly MyPlayerId?: number;
   readonly IsAI?: (PlayerId: number) => boolean;
+  readonly IsSpectator?: boolean;
   readonly OnRequestSettings?: () => void;
   readonly OnRequestQuit?: () => void;
 }
@@ -53,6 +54,7 @@ export class GameStageView extends Component {
   private _UnsubSnapshot: (() => void) | null = null;
   private _UnsubRound: (() => void) | null = null;
   private _CleanupFns: (() => void)[] = [];
+  private readonly _IsSpectator: boolean;
 
   constructor(Config: GameStageViewConfig) {
     super();
@@ -62,6 +64,7 @@ export class GameStageView extends Component {
     this._CardMode = Config.Mode ?? 'single';
     this._CardMyPlayerId = Config.MyPlayerId ?? 0;
     this._CardIsAI = Config.IsAI ?? (() => false);
+    this._IsSpectator = Config.IsSpectator ?? false;
     this._OnSettings = Config.OnRequestSettings ?? (() => {});
     this._OnRequestQuit = Config.OnRequestQuit ?? (() => Config.Store.Forfeit(Config.Store.CurrentPlayer));
   }
@@ -86,11 +89,24 @@ export class GameStageView extends Component {
 
     this._Console = new ControlConsole(this._Store, this._Input, this._OnRequestQuit, this._OnSettings);
     this._Console.Mount(Root);
+    if (this._IsSpectator) {
+      this._Console.Hide();
+    }
 
     this._CardHand = new CardHandView(this._Store, this._CardMode, this._CardMyPlayerId, this._CardIsAI, (InstanceId: number) => {
       this._Input.SubmitCard(InstanceId);
     });
     this._CardHand.Mount(Root);
+
+    if (this._IsSpectator) {
+      El({
+        Tag: 'div',
+        Class: 'font-mono',
+        Parent: Root,
+        Style: 'position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--text-dim);opacity:0.5;pointer-events:none;',
+        Text: '观战中 · SPECTATOR',
+      });
+    }
 
     const Sprint = El({
       Tag: 'div',

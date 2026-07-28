@@ -114,15 +114,29 @@ export class LobbyClient {
 
   /**
    * 观战房间
+   * @returns 观战者初始状态
    */
-  async SpectateRoom(RoomCode: string): Promise<void> {
+  async SpectateRoom(RoomCode: string): Promise<{ roomCode: string; initialState: { phase: string; currentPlayer: number; players: Array<{ playerId: number; nickname: string; isHost: boolean }>; snapshot: { PublicTerritory: number; Players: Array<{ Id: number; PrivateTerritory: number }> }; hands: Array<{ playerId: number; hand: unknown[] }>; deckSize: number; discardSize: number; cardEnabled: boolean } }> {
     await this._EnsureConnected();
-    await this._Client.SendAndWait(
+    const Result = await this._Client.SendAndWait<{ roomCode: string; initialState: { phase: string; currentPlayer: number; players: Array<{ playerId: number; nickname: string; isHost: boolean }>; snapshot: { PublicTerritory: number; Players: Array<{ Id: number; PrivateTerritory: number }> }; hands: Array<{ playerId: number; hand: unknown[] }>; deckSize: number; discardSize: number; cardEnabled: boolean } }>(
       ClientMsg.SpectateRoom(RoomCode),
       DEFAULT_TIMEOUT_MS,
     );
     this._RoomCode = RoomCode;
     this._IsHost = false;
+    return Result;
+  }
+
+  /**
+   * 获取可观战房间列表
+   */
+  async GetRoomList(): Promise<Array<{ roomCode: string; phase: string; playerCount: number; maxPlayers: number; hostNickname: string; spectatorCount: number }>> {
+    await this._EnsureConnected();
+    const Result = await this._Client.SendAndWait<{ rooms: Array<{ roomCode: string; phase: string; playerCount: number; maxPlayers: number; hostNickname: string; spectatorCount: number }> }>(
+      ClientMsg.GetRoomList(),
+      DEFAULT_TIMEOUT_MS,
+    );
+    return Result.rooms;
   }
 
   /**

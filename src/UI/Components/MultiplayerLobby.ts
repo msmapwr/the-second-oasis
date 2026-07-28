@@ -18,11 +18,14 @@ import { Component } from './Component';
 import { LobbyClient, type LobbyEvents } from '@/Net/LobbyClient';
 import { WebSocketClient, ConnectionState } from '@/Net/WebSocketClient';
 import { NetworkGameStore } from '@/Net/NetworkGameStore';
+import { SpectatorGameStore } from '@/Net/SpectatorGameStore';
+import type { SpectatorInitialState } from '@/Net/Messages';
 import type { PlayerId } from '@/Types/Player';
 
 /** 大厅结果——交回给 AppController 决定下一步 */
 export type LobbyResult =
   | { Kind: 'Started'; Store: NetworkGameStore; PlayerCount: number; Seed: number }
+  | { Kind: 'Spectating'; Store: SpectatorGameStore; PlayerCount: number; Seed: number }
   | { Kind: 'BackToMenu' };
 
 /** 玩家信息（用于列表展示） */
@@ -45,7 +48,7 @@ export class MultiplayerLobby extends Component {
   private _Lobby: LobbyClient | null = null;
 
   // 当前状态
-  private _Phase: 'Mode' | 'Waiting' = 'Mode';
+  private _Phase: 'Mode' | 'Waiting' | 'RoomList' = 'Mode';
   private _Players: PlayerEntry[] = [];
   private _IsHost = false;
   private _RoomCode = '';
@@ -131,6 +134,16 @@ export class MultiplayerLobby extends Component {
       Text: '加入房间 JOIN',
     }) as HTMLButtonElement;
     this._CleanupFns.push(On(JoinBtn, 'click', () => this._ShowNicknameForm('join')));
+
+    // 观战卡片
+    const SpecCard = this._Card('观战', 'WATCH', '浏览已开局的房间，以观战者身份进入观看');
+    const SpecBtn = El({
+      Tag: 'button',
+      Class: 'link-btn font-display',
+      Parent: SpecCard,
+      Text: '观战 WATCH',
+    }) as HTMLButtonElement;
+    this._CleanupFns.push(On(SpecBtn, 'click', () => this._ShowRoomList()));
 
     // 返回菜单
     const Back = El({
@@ -529,6 +542,118 @@ export class MultiplayerLobby extends Component {
   private _LeaveRoom(): void {
     this._Lobby?.LeaveRoom();
     this._ReturnToMenu();
+  }
+
+  // ===== 房间列表 & 观战 =====
+
+  private async _ShowRoomList(): Promise<void> {
+    if (!this._Content) return;
+    this._Content.innerHTML = '';
+    this._Phase = 'RoomList';
+
+    El({
+      Tag: 'div',
+      Class: 'mp-section-label',
+      Parent: this._Content,
+      Text: '可观战房间 · WATCH ROOMS',
+    });
+
+    const ListContainer = El({ Tag: 'div', Class: 'mp-player-list', Parent: this._Content });
+
+    try {
+      await this._EnsureClient();
+      if (!this._Lobby || !this._WsClient) throw new Error('未连接');
+      const Rooms = await this._Lobby.GetRoomList();
+      this._RenderRoomEntries(ListContainer, Rooms);
+    } catch (Err) {
+      El({
+        Tag: 'div',
+        Class: 'font-mono text-dim',
+        Parent: ListContainer,
+        Style: 'padding:20px;text-align:center;',
+        Text: `获取房间列表失败: ${(Err as Error).message}`,
+      });
+    }
+
+    const BtnRow = El({ Tag: 'div', Class: 'mp-action-row', Parent: this._Content });
+    const RefreshBtn = El({
+      Tag: 'button',
+      Class: 'link-btn font-display',
+      Parent: BtnRow,
+      Text: '刷新 REFRESH',
+    }) as HTMLButtonElement;
+    this._CleanupFns.push(On(RefreshBtn, 'click', () => this._ShowRoomList()));
+
+    const BackBtn = El({
+      Tag: 'button',
+      Class: 'mp-back font-mono',
+      Parent: BtnRow,
+      Text: '← 返回',
+    }) as HTMLButtonElement;
+    this._CleanupFns.push(On(BackBtn, 'click', () => this._RenderModeChoice()));
+  }
+
+  private _RenderRoomEntries(
+    Container: HTMLElement,
+    Rooms: Array<{ roomCode: string; phase: string; playerCount: number; maxPlayers: number; hostNickname: string; spectatorCount: number }>,
+  ): void {
+    Container.innerHTML = '';
+    if (Rooms.length === 0) {
+      El({
+        Tag: 'div',
+        Class: 'font-mono text-dim',
+        Parent: Container,
+        Style: 'padding:20px;text-align:center;',
+        Text: '当前没有正在进行的对局',
+      });
+      return;
+    }
+    const Grid = El({ Tag: 'div', Class: 'mp-player-grid', Parent: Container });
+    for (const R of Rooms) {
+      const Row = El({ Tag: 'div', Class: 'mp-player-row', Parent: Grid });
+      El({
+        Tag: 'span',
+        Class: 'mp-player-name',
+        Parent: Row,
+        Text: `${R.roomCode} · ${R.hostNickname} (${R.playerCount}/${R.maxPlayers})`,
+      });
+      El({
+        Tag: 'span',
+        Class: 'mp-player-tags',
+        Parent: Row,
+        Html: `<span class="mp-tag" style="font-size:10px;color:var(--text-dim);">${R.spectatorCount}人观看</span>`,
+      });
+      const WatchBtn = El({
+        Tag: 'button',
+        Class: 'console-btn pass',
+        Parent: Row,
+        Text: '观战',
+        Style: 'font-size:11px;padding:4px 12px;',
+      }) as HTMLButtonElement;
+      this._CleanupFns.push(On(WatchBtn, 'click', () => this._DoSpectate(R.roomCode)));
+    }
+  }
+
+  private async _DoSpectate(RoomCode: string): Promise<void> {
+    this._ShowBusy('正在进入观战...');
+    try {
+      await this._EnsureClient();
+      if (!this._Lobby || !this._WsClient) throw new Error('未连接');
+      const Payload = await this._Lobby.SpectateRoom(RoomCode);
+
+      const Store = new SpectatorGameStore(this._WsClient);
+      Store.InitFromSpectatorJoined(Payload.initialState as unknown as SpectatorInitialState);
+      Store.StartListening();
+      const PlayerCount = Payload.initialState.players.length as 2 | 3 | 4;
+      this._OnResult({
+        Kind: 'Spectating',
+        Store,
+        PlayerCount,
+        Seed: 0,
+      });
+    } catch (Err) {
+      this._ShowError(`观战失败: ${(Err as Error).message}`);
+    }
   }
 
   private _ReturnToMenu(): void {

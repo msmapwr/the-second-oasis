@@ -127,6 +127,12 @@ export class ControlConsole extends Component {
     if (this._Area) Clear(this._Area);
   }
 
+  Hide(): void {
+    if (this._Area) {
+      this._Area.style.display = 'none';
+    }
+  }
+
   private _AddButton(
     Text: string,
     Modifier: 'launch' | 'steady' | 'aggressive' | 'pass' | 'tiebreak' | 'revenge',

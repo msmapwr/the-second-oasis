@@ -23,6 +23,7 @@ import { Component } from './Component';
 export interface GameOverCallbacks {
   OnRestart: () => void;
   OnBackToMenu: () => void;
+  OnSaveReplay?: () => void;
 }
 
 /**
@@ -166,6 +167,17 @@ export class GameOverScreen extends Component {
       Text: '再来一局',
     });
     RestartBtn.addEventListener('click', () => this._Callbacks.OnRestart());
+
+    if (this._Callbacks.OnSaveReplay) {
+      const SaveBtn = El({
+        Tag: 'button',
+        Class: 'go-btn menu font-mono',
+        Parent: BtnRow,
+        Style: 'padding:14px;font-size:12px;letter-spacing:1px;',
+        Text: '保存回放',
+      });
+      SaveBtn.addEventListener('click', () => this._Callbacks.OnSaveReplay!());
+    }
 
     const MenuBtn = El({
       Tag: 'button',

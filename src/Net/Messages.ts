@@ -19,6 +19,7 @@ import type { GamePhase } from '@/Types/GamePhase';
 import type { LaunchResult } from '@/Types/Launch';
 import type { TurnResult } from '@/Types/Turn';
 import type { TiebreakerRound, GameResult } from '@/Types/GameResult';
+import type { CardInstance } from '@/Types/Card';
 
 // ===== 错误码 =====
 
@@ -52,6 +53,7 @@ export type ClientMessageType =
   | 'RUN_TIEBREAKER'
   | 'USE_CARD'
   | 'SPECTATE_ROOM'
+  | 'GET_ROOM_LIST'
   | 'HEARTBEAT';
 
 /** 创建房间 */
@@ -96,6 +98,11 @@ export interface UseCardPayload {
   targetPlayerId: PlayerId | null;
 }
 
+/** 获取可观战房间列表 */
+export interface GetRoomListPayload {
+  /** 无额外参数 */
+}
+
 /**
  * 客户端消息联合类型
  * 每个消息 = type 标识 + payload 载荷
@@ -110,6 +117,7 @@ export type ClientMessage =
   | { type: 'RUN_TIEBREAKER'; payload: RunTiebreakerPayload }
   | { type: 'USE_CARD'; payload: UseCardPayload }
   | { type: 'SPECTATE_ROOM'; payload: SpectateRoomPayload }
+  | { type: 'GET_ROOM_LIST'; payload: GetRoomListPayload }
   | { type: 'HEARTBEAT'; payload: Record<string, never> };
 
 // ===== 服务端 → 客户端消息 =====
@@ -128,6 +136,8 @@ export type ServerMessageType =
   | 'CARD_RESULT'
   | 'COUNTER_WINDOW'
   | 'HAND_UPDATE'
+  | 'HAND_REVEAL'
+  | 'ROOM_LIST'
   | 'PLAYER_DISCONNECTED'
   | 'PLAYER_RECONNECTED'
   | 'SPECTATOR_JOINED'
@@ -231,12 +241,44 @@ export interface ErrorPayload {
   message: string;
 }
 
+/** 房间列表中的单个房间摘要 */
+export interface RoomListItem {
+  roomCode: string;
+  phase: string;
+  playerCount: number;
+  maxPlayers: number;
+  hostNickname: string;
+  spectatorCount: number;
+}
+
+/** 房间列表响应 */
+export interface RoomListPayload {
+  rooms: RoomListItem[];
+}
+
+/** 观战者完整手牌推送（每玩家一手） */
+export interface PerPlayerHands {
+  playerId: PlayerId;
+  hand: readonly CardInstance[];
+}
+
+/** 观战者全手牌快照 */
+export interface HandRevealPayload {
+  hands: PerPlayerHands[];
+  deckSize: number;
+  discardSize: number;
+}
+
 /** 观战者加入时收到的完整初始状态 */
 export interface SpectatorInitialState {
   phase: GamePhase;
   currentPlayer: PlayerId;
   players: PlayerInfo[];
   snapshot: TerritorySnapshot;
+  hands: PerPlayerHands[];
+  deckSize: number;
+  discardSize: number;
+  cardEnabled: boolean;
 }
 
 /** 观战者加入 */
@@ -257,6 +299,8 @@ export interface CardResultPayload {
   playerId: PlayerId;
   cardId: string;
   cardType: string;
+  cardInstanceId: number;
+  targetPlayerId: PlayerId | null;
   snapshot: TerritorySnapshot;
   currentPlayer: PlayerId;
 }
@@ -291,6 +335,8 @@ export type ServerMessage =
   | { type: 'CARD_RESULT'; payload: CardResultPayload }
   | { type: 'COUNTER_WINDOW'; payload: CounterWindowPayload }
   | { type: 'HAND_UPDATE'; payload: HandUpdatePayload }
+  | { type: 'HAND_REVEAL'; payload: HandRevealPayload }
+  | { type: 'ROOM_LIST'; payload: RoomListPayload }
   | { type: 'PLAYER_DISCONNECTED'; payload: PlayerDisconnectedPayload }
   | { type: 'PLAYER_RECONNECTED'; payload: PlayerReconnectedPayload }
   | { type: 'SPECTATOR_JOINED'; payload: SpectatorJoinedPayload }
@@ -380,6 +426,10 @@ export const ClientMsg = {
   SpectateRoom: (RoomCode: string): ClientMessage => ({
     type: 'SPECTATE_ROOM',
     payload: { roomCode: RoomCode },
+  }),
+  GetRoomList: (): ClientMessage => ({
+    type: 'GET_ROOM_LIST',
+    payload: {},
   }),
   Heartbeat: (): ClientMessage => ({
     type: 'HEARTBEAT',

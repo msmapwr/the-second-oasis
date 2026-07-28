@@ -19,7 +19,8 @@ export interface StartConfig {
 
 export type MainMenuAction =
   | { Kind: 'Local'; Config: StartConfig }
-  | { Kind: 'Multiplayer' };
+  | { Kind: 'Multiplayer' }
+  | { Kind: 'Replays' };
 
 const COLOR_PRESETS = [
   { Label: '亮', Color: COLORS.NmText },
@@ -167,6 +168,15 @@ export class MainMenu extends Component {
       Title: '游戏设置',
     }) as HTMLButtonElement;
     this._CleanupFns.push(On(SettingsBtn, 'click', () => this._OnRequestSettings()));
+
+    const ReplaysBtn = El({
+      Tag: 'button',
+      Class: 'link-btn font-display',
+      Parent: Console,
+      Text: '回放 REPLAYS',
+      Title: '观看已保存的对局回放',
+    }) as HTMLButtonElement;
+    this._CleanupFns.push(On(ReplaysBtn, 'click', () => this._StartReplays()));
 
     El({
       Tag: 'div',
@@ -565,6 +575,10 @@ export class MainMenu extends Component {
 
   private _StartMultiplayer(): void {
     this._OnAction({ Kind: 'Multiplayer' });
+  }
+
+  private _StartReplays(): void {
+    this._OnAction({ Kind: 'Replays' });
   }
 
   protected _OnUnmount(): void {

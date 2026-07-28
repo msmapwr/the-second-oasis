@@ -107,6 +107,9 @@ export class GameWebSocketServer {
       case 'SPECTATE_ROOM':
         this._HandleSpectateRoom(Ws, Msg.payload);
         break;
+      case 'GET_ROOM_LIST':
+        this._HandleGetRoomList(Ws);
+        break;
       case 'HEARTBEAT':
         this._HandleHeartbeat(Ws);
         break;
@@ -317,6 +320,19 @@ export class GameWebSocketServer {
       isHost: P.IsHost,
     }));
 
+    const Hands: Array<{ playerId: number; hand: unknown[] }> = [];
+    const CardEnabled = GameRoom.Store?.CardEnabled ?? false;
+    if (CardEnabled && GameRoom.Store) {
+      const PlayerCount = GameRoom.Room.Players.length;
+      for (let Pid = 0; Pid < PlayerCount; Pid++) {
+        Hands.push({
+          playerId: Pid,
+          hand: GameRoom.Store.GetCardHand(Pid),
+        });
+      }
+    }
+    const CardSnap = GameRoom.Store?.GetCardSnapshot();
+
     const Response: ServerMessage = {
       type: 'SPECTATOR_JOINED',
       payload: {
@@ -329,11 +345,26 @@ export class GameWebSocketServer {
             PublicTerritory: 100,
             Players: [],
           },
+          hands: Hands as Array<{ playerId: number; hand: readonly unknown[] }>,
+          deckSize: CardSnap?.DeckSize ?? 0,
+          discardSize: CardSnap?.DiscardSize ?? 0,
+          cardEnabled: CardEnabled,
         },
       },
     };
     Ws.send(SerializeMessage(Response));
     console.log(`[GameServer] 观战者加入房间 ${RoomCode}`);
+  }
+
+  private _HandleGetRoomList(Ws: WebSocket): void {
+    const Rooms = this._RoomManager.GetPlayingRooms();
+    const Response: ServerMessage = {
+      type: 'ROOM_LIST',
+      payload: { rooms: Rooms },
+    };
+    if (Ws.readyState === Ws.OPEN) {
+      Ws.send(SerializeMessage(Response));
+    }
   }
 
   // ===== 心跳 =====

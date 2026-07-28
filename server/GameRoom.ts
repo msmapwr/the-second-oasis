@@ -167,6 +167,8 @@ export class GameRoom {
       },
     });
 
+    this._BroadcastHandReveal();
+
     // 检查终局
     if (this._Store.IsOver && this._Store.Result) {
       this._HandleGameOver(this._Store.Result);
@@ -191,10 +193,14 @@ export class GameRoom {
         playerId: PlayerId,
         cardId: Record.CardId,
         cardType: Record.CardType,
+        cardInstanceId: InstanceId,
+        targetPlayerId: TargetPlayerId,
         snapshot: this._Store.Snapshot,
         currentPlayer: this._Store.CurrentPlayer,
       },
     });
+
+    this._BroadcastHandReveal();
 
     return { success: true, cardId: Record.CardId, cardType: Record.CardType };
   }
@@ -330,6 +336,45 @@ export class GameRoom {
    */
   GetSnapshot(): TerritorySnapshot | null {
     return this._Store?.Snapshot ?? null;
+  }
+
+  /**
+   * 仅向观战者广播所有玩家的完整手牌
+   * 在回合结束或卡牌使用后调用，保证观战者看到最新手牌。
+   */
+  private _BroadcastHandReveal(): void {
+    if (!this._Store || !this._Store.CardEnabled) return;
+    if (this.Room.Spectators.length === 0) return;
+
+    const Hands: Array<{ playerId: number; hand: readonly unknown[] }> = [];
+    const PlayerCount = this.Room.Players.length;
+    for (let Pid = 0; Pid < PlayerCount; Pid++) {
+      Hands.push({
+        playerId: Pid,
+        hand: this._Store.GetCardHand(Pid),
+      });
+    }
+
+    const CardSnap = this._Store.GetCardSnapshot();
+
+    const Raw = JSON.stringify({
+      type: 'HAND_REVEAL',
+      payload: {
+        hands: Hands,
+        deckSize: CardSnap.DeckSize,
+        discardSize: CardSnap.DiscardSize,
+      },
+    });
+
+    for (const SpecWs of this.Room.Spectators) {
+      if (SpecWs.readyState === SpecWs.OPEN) {
+        try {
+          SpecWs.send(Raw);
+        } catch {
+          // 忽略
+        }
+      }
+    }
   }
 
   // ===== 内部方法 =====

@@ -42,6 +42,13 @@ import { AudioEngine } from '@/Audio/AudioEngine';
 import { AnimationManager } from '@/Render/Animation/AnimationManager';
 import { AnimationCoordinator } from '@/Render/Animation/AnimationCoordinator';
 import { SettingsPanel } from '@/UI/Components/SettingsPanel';
+import { ReplayRecorder } from '@/Store/ReplayRecorder';
+import { SaveReplay, LoadReplay } from '@/Store/ReplayStore';
+import { ExportReplay } from '@/Store/ReplaySerializer';
+import { ReplayListPanel, type ReplayListAction } from '@/UI/Components/ReplayListPanel';
+import { ReplayPlayer } from '@/UI/Components/ReplayPlayer';
+import type { StoredReplay, ReplayHeader } from '@/Types/Replay';
+import { REPLAY_VERSION } from '@/Types/Replay';
 import { On } from '@/UI/Dom';
 
 /**
@@ -75,6 +82,8 @@ export class AppController {
   private readonly _AnimManager: AnimationManager;
   /** 动画编排器（每局单独创建/销毁） */
   private _AnimCoordinator: AnimationCoordinator | null = null;
+  /** 回放录制器（单局生命周期） */
+  private _Recorder: ReplayRecorder | null = null;
   /** 设置面板（单例，复用） */
   private _SettingsPanel: SettingsPanel | null = null;
   /** 设置齿轮按钮 */
@@ -201,11 +210,13 @@ export class AppController {
           LastLocalConfig = Action.Config;
           LastWasLocal = true;
           await this._PlayGame(LastLocalConfig);
+        } else if (Action.Kind === 'Replays') {
+          LastWasLocal = false;
+          await this._ShowReplayList();
         } else {
           LastWasLocal = false;
           const Played = await this._PlayMultiplayer();
           if (!Played) {
-            // 用户从大厅直接返回，未开局，跳过终局等待直接回到主菜单
             continue;
           }
         }
@@ -243,8 +254,7 @@ export class AppController {
    * @returns 是否实际开局（true=玩了，false=用户返回菜单）
    */
   private async _PlayMultiplayer(): Promise<boolean> {
-    // 用数组持引用以规避 TS 在 Promise 闭包中对 null 的 narrow 推断
-    const Ref: { Lobby: MultiplayerLobby | null; NetStore: NetworkGameStore | null } = {
+    const Ref: { Lobby: MultiplayerLobby | null; NetStore: IGameStore | null } = {
       Lobby: null,
       NetStore: null,
     };
@@ -261,15 +271,14 @@ export class AppController {
         return false;
       }
 
-      // 联机开局
       Ref.NetStore = Result.Store;
       const PlayerCount = Result.PlayerCount;
       const Seed = Result.Seed;
       Ref.Lobby?.Unmount();
       Ref.Lobby = null;
 
-      // NetworkGameStore 已在 MultiplayerLobby 中 InitFromGameStarting，
-      // 直接走统一 _PlayGame 路径（不再调 StartAsync）
+      // 联机开局 或 观战
+      const IsSpectator = Result.Kind === 'Spectating';
       await this._PlayGame(
         {
           PlayerCount: PlayerCount as 2 | 3 | 4,
@@ -278,13 +287,17 @@ export class AppController {
           UseVariant: true,
         },
         Ref.NetStore,
+        IsSpectator,
       );
 
       return true;
     } finally {
-      // 联机对局结束，断开 WebSocket
       if (Ref.NetStore) {
-        Ref.NetStore.LeaveRoom();
+        if ('LeaveRoom' in Ref.NetStore) {
+          (Ref.NetStore as NetworkGameStore).LeaveRoom();
+        } else if ('StopListening' in Ref.NetStore) {
+          (Ref.NetStore as { StopListening(): void }).StopListening();
+        }
       }
       Ref.Lobby?.Unmount();
     }
@@ -295,7 +308,7 @@ export class AppController {
    * @param Config 游戏配置
    * @param ExistingStore 可选的外部 Store（联机模式传入 NetworkGameStore，热座模式不传则自动创建）
    */
-  private async _PlayGame(Config: StartConfig, ExistingStore?: IGameStore): Promise<void> {
+  private async _PlayGame(Config: StartConfig, ExistingStore?: IGameStore, IsSpectator = false): Promise<void> {
     PlayerPalette.SetConfig(Config.Players);
     const Store = ExistingStore ?? new GameStore(
       Config.UseVariant
@@ -314,30 +327,53 @@ export class AppController {
     };
     document.addEventListener('keydown', this._EscapeHandler);
 
-    // 本地对局才创建 AI 导演；联机模式下不创建，避免 AI 向服务器发送决策
+    // 本地对局才创建 AI 导演；联机/观战模式下不创建
+    const IsLocal = ExistingStore === undefined;
     const AIGameConfig: AIGameConfig = CreateAIGameConfig(
       Config.PlayerCount,
       Config.Seed,
       Config.Players,
     );
-    const HasAI = AIGameConfig.Players.some((P) => P.IsAI);
+    const HasAI = IsLocal && AIGameConfig.Players.some((P) => P.IsAI);
     const AIDirectorInstance = HasAI ? new AIDirector(AIGameConfig) : CreateNullAIDirector();
 
-    // 绑定键盘快捷键（免鼠标操作），游戏结束/退出时解绑
-    Input.BindKeyboard();
+    // 绑定键盘快捷键（观战模式不绑定）
+    if (!IsSpectator) {
+      Input.BindKeyboard();
+    }
     this._SettingsGear.style.display = 'none';
 
     // 创建游戏舞台视图
     const Stage = new GameStageView({
       Store, Input, AIDirector: AIDirectorInstance,
-      Mode: ExistingStore ? 'multiplayer' : 'single',
-      MyPlayerId: ExistingStore ? (ExistingStore as { MyPlayerId?: number }).MyPlayerId ?? 0 : 0,
+      Mode: ExistingStore ? (IsSpectator ? 'spectator' : 'multiplayer') : 'single',
+      MyPlayerId: IsSpectator ? -1 : (ExistingStore ? (ExistingStore as { MyPlayerId?: number }).MyPlayerId ?? 0 : 0),
       IsAI: (Pid: number) => AIDirectorInstance.IsAI(Pid),
+      IsSpectator,
       OnRequestSettings: () => this._OpenSettings(),
       OnRequestQuit: () => this.RequestQuit(),
     });
     Stage.Mount(this._UiLayer!);
     Stage.ClearLog();
+
+    // 挂载回放录制器（仅本地热座，非对战非观战）
+    this._Recorder = null;
+    if (IsLocal && !IsSpectator) {
+      const Header: ReplayHeader = {
+        version: REPLAY_VERSION,
+        seed: Config.Seed,
+        playerCount: Config.PlayerCount,
+        variant: Config.UseVariant,
+        playerConfigs: Config.Players.map((P) => ({
+          Name: P.Name,
+          Color: P.Color,
+          IsAI: P.IsAI ?? false,
+        })),
+        createdAt: Date.now(),
+      };
+      this._Recorder = new ReplayRecorder(Header);
+      this._Recorder.Start(Store);
+    }
 
     // 清空上一局残留动画，并绑定本局动画编排器
     this._AnimManager.Clear();
@@ -366,19 +402,29 @@ export class AppController {
     // 初始主题色为首回合玩家色
     this._ApplyTurnTheme(Store.CurrentPlayer);
 
-    // 主循环
-    while (!Store.IsOver && !this._QuitRequested) {
-      const Phase = Store.Phase;
+    // 主循环（观战模式跳过：状态由 WebSocket 推送驱动）
+    if (!IsSpectator) {
+      while (!Store.IsOver && !this._QuitRequested) {
+        const Phase = Store.Phase;
 
-      if (Phase === GamePhase.LaunchPhase) {
-        await this._HandleLaunch(Store, Input, Stage, AIDirectorInstance);
-      } else if (Phase === GamePhase.SelectMode) {
-        await this._HandleSelectMode(Store, Input, Stage, AIDirectorInstance);
-      } else if (Phase === GamePhase.Tiebreaker) {
-        await this._HandleTiebreaker(Store, Input, Stage, AIDirectorInstance);
-      } else {
-        break;
+        if (Phase === GamePhase.LaunchPhase) {
+          await this._HandleLaunch(Store, Input, Stage, AIDirectorInstance);
+        } else if (Phase === GamePhase.SelectMode) {
+          await this._HandleSelectMode(Store, Input, Stage, AIDirectorInstance);
+        } else if (Phase === GamePhase.Tiebreaker) {
+          await this._HandleTiebreaker(Store, Input, Stage, AIDirectorInstance);
+        } else {
+          break;
+        }
       }
+    } else {
+      // 等待 WebSocket 推送的游戏结束事件
+      await new Promise<void>((Resolve) => {
+        const Unsub = Store.On('GameOver', () => {
+          Unsub();
+          Resolve();
+        });
+      });
     }
 
     AIDirectorInstance.Reset();
@@ -783,6 +829,7 @@ export class AppController {
     this._GameOverScreen = new GameOverScreen({
       OnRestart: () => this._ResolveGameOver('restart'),
       OnBackToMenu: () => this._ResolveGameOver('menu'),
+      OnSaveReplay: () => this._SaveCurrentReplay(),
     });
     this._GameOverScreen.Mount(this._UiLayer!);
     this._GameOverScreen.ShowResult(Result);
@@ -807,6 +854,91 @@ export class AppController {
       }
       R(Choice);
     }
+  }
+
+  /**
+   * 保存当前对局回放
+   */
+  private async _SaveCurrentReplay(): Promise<void> {
+    if (!this._Recorder) return;
+    try {
+      const Id = `rp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const Replay = this._Recorder.BuildReplay(Id);
+      await SaveReplay(Replay);
+      if (this._GameOverScreen && this._GameOverScreen.Root) {
+        const Hint = El({
+          Tag: 'div',
+          Class: 'font-mono',
+          Parent: this._GameOverScreen.Root,
+          Style: 'position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:var(--oasis);font-size:12px;',
+          Text: '回放已保存！',
+        });
+        window.setTimeout(() => Hint.remove(), 3000);
+      }
+    } catch (Err) {
+      console.warn('保存回放失败:', Err);
+    }
+  }
+
+  /**
+   * 显示回放列表
+   */
+  private async _ShowReplayList(): Promise<void> {
+    const Result = await new Promise<ReplayListAction>((Resolve) => {
+      const Panel = new ReplayListPanel((A) => {
+        Panel.Unmount();
+        Resolve(A);
+      });
+      Panel.Mount(this._UiLayer!);
+    });
+
+    if (Result.Kind === 'Close') return;
+
+    if (Result.Kind === 'Export') {
+      try {
+        const Replay = await LoadReplay(Result.Id);
+        if (Replay) {
+          await ExportReplay(Replay);
+        }
+      } catch (Err) {
+        console.warn('导出回放失败:', Err);
+      }
+      return;
+    }
+
+    if (Result.Kind === 'Play') {
+      try {
+        const Replay = await LoadReplay(Result.Id);
+        if (Replay) {
+          await this._PlayReplay(Replay);
+        }
+      } catch (Err) {
+        console.warn('加载回放失败:', Err);
+      }
+    }
+  }
+
+  /**
+   * 播放回放
+   */
+  private async _PlayReplay(Replay: StoredReplay): Promise<void> {
+    this._Board?.SetSource(null);
+    this._Canvas?.PauseLayers();
+
+    await new Promise<void>((Resolve) => {
+      const Player = new ReplayPlayer(Replay, {
+        OnClose: () => {
+          Player.Unmount();
+          Resolve();
+        },
+        OnSaveAgain: () => {
+          // 已保存的回放无需重复保存
+        },
+      });
+      Player.Mount(this._UiLayer!);
+    });
+
+    this._Canvas?.PauseLayers();
   }
 
   /**

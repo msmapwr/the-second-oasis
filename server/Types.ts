@@ -29,6 +29,11 @@ export type {
   SpectatorJoinedPayload,
   SpectatorUpdatePayload,
   ErrorPayload,
+  RoomListItem,
+  RoomListPayload,
+  HandRevealPayload,
+  PerPlayerHands,
+  CardResultPayload,
 } from '../src/Net/Messages';
 
 export {
@@ -49,3 +54,4 @@ export type { LaunchResult } from '../src/Types/Launch';
 export type { TurnResult } from '../src/Types/Turn';
 export type { TiebreakerRound, GameResult } from '../src/Types/GameResult';
 export type { GameConfig } from '../src/Types/GameConfig';
+export type { CardInstance } from '../src/Types/Card';
