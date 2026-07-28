@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《第二绿洲》网页游戏计划书 · The Second Oasis</title>
+<style>
+  :root{
+    --bg:#f7f9fc;
+    --panel:#ffffff;
+    --ink:#1f2733;
+    --muted:#5b6675;
+    --line:#e3e8ef;
+    --brand:#0e7c86;
+    --brand-soft:#e3f3f4;
+    --accent:#f0a02c;
+    --danger:#d9534f;
+    --danger-soft:#fbe9e8;
+    --ok:#2e8b57;
+    --ok-soft:#e7f4ec;
+    --warn:#b8860b;
+    --warn-soft:#fcf3df;
+    --radius:14px;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7;font-size:15px;
+  }
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 22px 80px}
+
+  /* Header */
+  header.hero{
+    background:linear-gradient(135deg,#0e7c86 0%,#135b6b 60%,#0b3d49 100%);
+    color:#fff;border-radius:var(--radius);padding:40px 38px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden;
+  }
+  header.hero::after{
+    content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;
+    background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%);
+  }
+  header.hero h1{margin:0;font-size:34px;letter-spacing:1px}
+  header.hero .en{font-size:15px;opacity:.8;letter-spacing:3px;text-transform:uppercase;margin-top:6px}
+  header.hero .tag{display:inline-block;margin-top:18px;background:rgba(255,255,255,.16);
+    padding:5px 12px;border-radius:999px;font-size:13px;margin-right:8px}
+  .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:24px}
+  .meta-grid .m{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:12px 14px}
+  .meta-grid .m b{display:block;font-size:11px;letter-spacing:1px;opacity:.7;text-transform:uppercase}
+  .meta-grid .m span{font-size:15px;font-weight:600}
+
+  /* TOC */
+  nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 22px;margin:26px 0;box-shadow:var(--shadow)}
+  nav.toc h2{margin:0 0 10px;font-size:14px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:36px}
+  nav.toc li{margin:4px 0;break-inside:avoid}
+  @media(max-width:680px){nav.toc ol{columns:1}}
+
+  section.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px 30px;margin:22px 0;box-shadow:var(--shadow)}
+  section.card h2{margin:0 0 4px;font-size:22px;display:flex;align-items:center;gap:10px}
+  section.card h2 .num{display:inline-flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:8px;background:var(--brand-soft);color:var(--brand);
+    font-size:14px;font-weight:700;flex:0 0 auto}
+  section.card h3{margin:22px 0 8px;font-size:16px;color:var(--brand);border-left:3px solid var(--brand);
+    padding-left:10px}
+  section.card p{margin:10px 0}
+  .lead{color:var(--muted);margin-top:2px}
+
+  /* Tables */
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  tbody tr:nth-child(even){background:#fafcfe}
+  td code{font-family:var(--mono);background:#eef2f7;padding:1px 6px;border-radius:5px;font-size:13px}
+  td .val{font-family:var(--mono);color:var(--brand);font-weight:600}
+
+  /* Callouts */
+  .note{border-radius:10px;padding:14px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .note.tip{background:var(--ok-soft);border-color:#bfe3cd;color:#1f5c39}
+  .note.warn{background:var(--warn-soft);border-color:#ecd9a6;color:#7a5500}
+  .note.danger{background:var(--danger-soft);border-color:#f1c6c4;color:#8a2b28}
+  .note b{display:block;margin-bottom:4px;font-weight:700}
+
+  /* Step / flow */
+  .flow{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:stretch}
+  .flow .step{flex:1 1 150px;background:#f4f8fb;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;position:relative}
+  .flow .step .s{font-size:11px;color:var(--brand);font-weight:700;letter-spacing:1px}
+  .flow .step .t{font-weight:600;margin-top:3px}
+  .flow .step .d{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .flow .arrow{flex:0 0 auto;display:flex;align-items:center;color:var(--muted);font-size:18px}
+
+  /* KPI pills */
+  .pills{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .pill{background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600}
+
+  /* Glossary */
+  .gloss{display:grid;grid-template-columns:120px 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .gloss dt{background:#f4f8fb;padding:9px 14px;font-weight:700;color:var(--brand);border-bottom:1px solid var(--line)}
+  .gloss dd{margin:0;padding:9px 14px;border-bottom:1px solid var(--line)}
+
+  /* mode cards */
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+  @media(max-width:680px){.modes{grid-template-columns:1fr}}
+  .mode{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fbfdff}
+  .mode h4{margin:0 0 6px;font-size:15px}
+  .mode .badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .mode.s h4{color:var(--ok)} .mode.s .badge{background:var(--ok-soft);color:var(--ok)}
+  .mode.a h4{color:var(--danger)} .mode.a .badge{background:var(--danger-soft);color:var(--danger)}
+  .mode.n h4{color:var(--muted)} .mode.n .badge{background:#eef2f7;color:var(--muted)}
+
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:40px}
+  .flag{display:inline-block;background:#fff3cd;color:#8a6d00;border:1px solid #ffe69c;
+    border-radius:6px;padding:1px 7px;font-size:12px;font-weight:700;margin-left:6px}
+  hr.soft{border:none;border-top:1px dashed var(--line);margin:18px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>《第二绿洲》</h1>
+    <div class="en">The Second Oasis · 网页游戏计划书</div>
+    <div>
+      <span class="tag">类型：网页策略桌游</span>
+      <span class="tag">人数：2 ~ 4 人</span>
+      <span class="tag">对局时长：约 15 ~ 30 分钟</span>
+    </div>
+    <div class="meta-grid">
+      <div class="m"><b>文档版本</b><span>v1.0</span></div>
+      <div class="m"><b>编制依据</b><span>（人工）项目游戏计划.txt</span></div>
+      <div class="m"><b>编制日期</b><span>2026-07-25</span></div>
+      <div class="m"><b>文档状态</b><span>草案 · 待评审</span></div>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <h2>目录</h2>
+    <ol>
+      <li><a href="#s1">游戏概览</a></li>
+      <li><a href="#s2">游戏背景与主题</a></li>
+      <li><a href="#s3">游戏目标与胜负</a></li>
+      <li><a href="#s4">游戏准备</a></li>
+      <li><a href="#s5">核心数值表</a></li>
+      <li><a href="#s6">回合流程</a></li>
+      <li><a href="#s7">基础机制：掷骰与占领</a></li>
+      <li><a href="#s8">回合开局：模式选择</a></li>
+      <li><a href="#s9">连击机制：开发链</a></li>
+      <li><a href="#s10">特殊机制：抢夺</a></li>
+      <li><a href="#s11">特殊机制：崩坏</a></li>
+      <li><a href="#s12">特殊回合：发射</a></li>
+      <li><a href="#s13">网页实现要点</a></li>
+      <li><a href="#s14">术语表</a></li>
+      <li><a href="#s15">待澄清问题</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section class="card" id="s1">
+    <h2><span class="num">1</span>游戏概览</h2>
+    <p class="lead">一句话定位与关键属性。</p>
+    <p>《第二绿洲》是一款面向 <b>2~4 人</b> 的<b>网页策略桌游</b>。玩家分别扮演四个国家，围绕月球（公共领土）展开领土争夺。游戏以掷骰为核心随机源，融合<b>稳健 / 激进</b>策略选择、<b>连击开发</b>的风险博弈，以及由<b>抢夺</b>升级而来的<b>崩坏</b>熔断机制。当公共领土被瓜分殆尽，私有领土最多者获胜。</p>
+    <div class="pills">
+      <span class="pill">网页端运行</span>
+      <span class="pill">2 ~ 4 人</span>
+      <span class="pill">回合制</span>
+      <span class="pill">掷骰驱动</span>
+      <span class="pill">风险 / 收益博弈</span>
+      <span class="pill">公共池衰减</span>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="card" id="s2">
+    <h2><span class="num">2</span>游戏背景与主题</h2>
+    <p>地球资源枯竭后，人类将目光投向月球——代号"第二绿洲"。四个国家率先具备登月能力，意图在月球表面抢占尽可能多的领土。然而月球公共领土有限，争夺必然走向零和：当最后一块公共领土被分配完毕，谁在私人物业上积累最多，谁就掌握了新文明的主动权。</p>
+    <p class="lead">主题基调：冷峻的太空殖民竞争 + 轻策略博弈。视觉上建议采用深空蓝绿 + 月壤灰的配色，与计划书主色一致。</p>
+  </section>
+
+  <!-- 3 -->
+  <section class="card" id="s3">
+    <h2><span class="num">3</span>游戏目标与胜负</h2>
+    <h3>胜利条件</h3>
+    <p>当 <b>公共领土归零（= 0）</b> 时游戏立即结束，<b>私有领土数值最高</b> 的玩家获胜。平局时建议按"先达到该值者胜"或加赛一回合裁决（见待澄清 §15）。</p>
+    <h3>失败 / 出局</h3>
+    <p>常规情况下没有淘汰；但触发 <b>开发过度</b>（连续三次掷出对子）时，该玩家私有领土清零并标记为"荒地"，需重新走"发射"流程后才能再次参与占领。<b>荒地不计入任何玩家领土，也不回归公共领土。</b></p>
+    <div class="note tip"><b>设计意图</b>公共池是零和博弈的锚点：它越小，单次占领越容易触发抢夺与崩坏，对局在后段会显著加速并趋于混乱。</div>
+  </section>
+
+  <!-- 4 -->
+  <section class="card" id="s4">
+    <h2><span class="num">4</span>游戏准备</h2>
+    <table>
+      <thead><tr><th>准备项</th><th>数量 / 说明</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr><td>玩家（国家）</td><td><span class="val">2 ~ 4</span> 人</td><td>每人代表一个国家</td></tr>
+        <tr><td>骰子</td><td>每人 <span class="val">2</span> 颗（全桌最多 8 颗）</td><td>用于占领与开发判定</td></tr>
+        <tr><td>数字记录物</td><td><span class="val">5</span> 个（数值范围 1 ~ 100）</td><td>用于记录：1 个公共领土 + 最多 4 个玩家私有领土</td></tr>
+        <tr><td>公共领土初值</td><td><span class="val">100</span></td><td>所有玩家共享、可被瓜分的月球领土</td></tr>
+        <tr><td>私有领土初值</td><td>每人 <span class="val">0</span></td><td>各玩家独立积累</td></tr>
+      </tbody>
+    </table>
+    <div class="note warn"><b>规则缺口 · 记录物</b>原文"五个可以记录数字的东西（范围 1~100）"未明确用途。本计划书按最合理推断：<b>5 个记录位 = 1 个公共领土 + 4 个玩家私有领土</b>（对应最多 4 名玩家）。网页版可直接用状态栏替代实体记录物。</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="card" id="s5">
+    <h2><span class="num">5</span>核心数值表</h2>
+    <table>
+      <thead><tr><th>参数</th><th>符号</th><th>默认值</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>公共领土初始</td><td>—</td><td class="val">100</td><td>月球可被瓜分的总量</td></tr>
+        <tr><td>私有领土初始</td><td>—</td><td class="val">0</td><td>每人独立</td></tr>
+        <tr><td>单回合掷骰点数</td><td>n</td><td class="val">2 ~ 12</td><td>双骰之和（激进 / 常规）</td></tr>
+        <tr><td>稳健模式点数</td><td>—</td><td class="val">1 ~ 6</td><td>单骰</td></tr>
+        <tr><td>占领触发抢夺的阈值</td><td>m</td><td class="val">0（推断）</td><td>当占领使公共领土 &lt; m 时触发抢夺；推断 m = 0</td></tr>
+        <tr><td>抢夺量</td><td>m2</td><td class="val">n − 公共领土</td><td>占领溢出公共池的部分</td></tr>
+        <tr><td>抢夺随机返还量</td><td>r</td><td class="val">0 &lt; r ≤ m2</td><td>抢得失败后回归公共的部分</td></tr>
+        <tr><td>发射成功阈值</td><td>—</td><td class="val">≥ 7</td><td>发射回合掷双骰之和</td></tr>
+        <tr><td>发射成功奖励</td><td>—</td><td class="val">+2</td><td>私有领土</td></tr>
+        <tr><td>崩坏系数</td><td>x</td><td class="val">初始 2，+1/次</td><td>每次崩坏后自增</td></tr>
+        <tr><td>开发倍率</td><td>—</td><td class="val">×2 / ×3 / 清零</td><td>开发 / 大开发 / 开发过度</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 6 -->
+  <section class="card" id="s6">
+    <h2><span class="num">6</span>回合流程</h2>
+    <p>游戏从唯一的<b>发射回合</b>开始，全员发射成功后进入常规循环。每轮每位玩家依次行动一次。</p>
+    <div class="flow">
+      <div class="step"><div class="s">PHASE 0</div><div class="t">发射回合</div><div class="d">仅第一轮；每人掷骰 ≥7 方可发射</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="s">每轮开始</div><div class="t">选择模式</div><div class="d">稳健 / 激进 / 不开发</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="s">ACTION</div><div class="t">掷骰占领</div><div class="d">公共 − m，私有 + m</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="s">CHECK</div><div class="t">溢出判定</div><div class="d">公共 &lt; m？触发抢夺</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="s">CHECK</div><div class="t">对子判定</div><div class="d">开发链 / 开发过度</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="s">END</div><div class="t">下一位</div><div class="d">公共 = 0 则终局</div></div>
+    </div>
+    <p class="lead">注：<b>抢夺只能被触发一次</b>；第二次触发时升级为<b>崩坏</b>。发射回合与开发过度的"重新发射"会临时打断常规循环。</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="card" id="s7">
+    <h2><span class="num">7</span>基础机制：掷骰与占领</h2>
+    <h3>7.1 掷骰决定占领量</h3>
+    <p>每回合玩家掷骰，点数为 <code>n</code>。常规 / 激进模式下 <code>n</code> 为双骰之和（<span class="val">2 ~ 12</span>）；稳健模式下为单骰（<span class="val">1 ~ 6</span>）。玩家本回合获得 <code>n</code> 点领土。</p>
+    <h3>7.2 占领（特殊机制）</h3>
+    <p>当玩家 <code>(p)</code> 执行占领 <code>(m)</code> 点领土时：</p>
+    <ul>
+      <li><b>公共领土 − m</b></li>
+      <li><b>玩家 <code>(p)</code> 的私有领土 + m</b></li>
+    </ul>
+    <p>也就是说，占领是把领土从公共池"搬"到私人名下。若 <code>m</code> 超过当前公共领土剩余量，则超出部分 <code>m2 = n − 公共领土</code> 触发<b>抢夺</b>（见 §10）。</p>
+    <div class="note tip"><b>举例</b>公共领土剩 30，玩家掷出 n = 42（激进对子 + 开发 ×2 等组合后）。实际可占领上限为 30，溢出 m2 = 12 进入抢夺流程，由 <code>(p)</code> 向私有领土最高者发起争夺。</div>
+  </section>
+
+  <!-- 8 -->
+  <section class="card" id="s8">
+    <h2><span class="num">8</span>回合开局：模式选择</h2>
+    <p>每回合开始时，玩家可选择以下三种模式之一。模式决定本次掷骰的风险与收益：</p>
+    <div class="modes">
+      <div class="mode s">
+        <h4>稳健模式 <span class="badge">SAFE</span></h4>
+        <p>只掷 <b>1 颗</b> 骰子，获得 <span class="val">1 ~ 6</span> 领土。<br><b>永不触发崩坏</b>，收益低但稳定。</p>
+      </div>
+      <div class="mode a">
+        <h4>激进模式 <span class="badge">RISK</span></h4>
+        <p>掷 <b>2 颗</b> 骰子，获得 <span class="val">2 ~ 12</span> 领土。<br>若点数的和 <code>≤ 6</code>，则<b>改为扣除相应点数并回归公共领土</b>（即私有 − 点数，公共 + 点数）。</p>
+      </div>
+      <div class="mode n">
+        <h4>不开发 <span class="badge">NONE</span></h4>
+        <p>无明显效果（维持当前节奏，不主动触发开发链）。用于观望或规避风险。</p>
+      </div>
+    </div>
+    <div class="note warn"><b>规则缺口 · "不开发"</b>原文将"不开发"列为第三种选择但注明"无效果"。本计划书将其理解为<b>不主动选择开发链、按基础占领结算</b>的中性选项；是否等同于"稳健"需确认（见 §15）。</div>
+  </section>
+
+  <!-- 9 -->
+  <section class="card" id="s9">
+    <h2><span class="num">9</span>连击机制：开发链</h2>
+    <p>当玩家<b>掷出两个相同数字（对子）</b>时，触发开发链。链的长度取决于<b>连续</b>掷出对子的次数：</p>
+    <table>
+      <thead><tr><th>连续对子次数</th><th>触发</th><th>效果</th></tr></thead>
+      <tbody>
+        <tr><td>第 1 次</td><td><b>开发</b></td><td>本回合获得领土 <b>×2</b>（翻倍）</td></tr>
+        <tr><td>第 2 次（连续）</td><td><b>大开发</b></td><td>本回合获得领土 <b>×3</b>（翻三倍）</td></tr>
+        <tr><td>第 3 次（连续）</td><td><b>开发过度</b></td><td>私有领土 <b>清零</b>，标记为"荒地"（不计数、不回归公共），玩家需重新走发射流程</td></tr>
+      </tbody>
+    </table>
+    <div class="note danger"><b>高风险高回报</b>连续对子是强力的滚雪球手段，但第三次会直接清零——是典型的"见好就收"博弈点。建议在 UI 上对"连续对子计数"做醒目提示。</div>
+    <div class="note warn"><b>规则缺口 · 倍率基数</b>原文"获得领土翻倍"未说明基数。本计划书推断为<b>本回合应得领土（n 或模式点数）的倍率</b>，而非私有总领土翻倍。若应为"私有总领土翻倍"需修改（见 §15）。</div>
+  </section>
+
+  <!-- 10 -->
+  <section class="card" id="s10">
+    <h2><span class="num">10</span>特殊机制：抢夺</h2>
+    <p>当玩家 <code>(p)</code> 的占领使公共领土不足以支付 <code>n</code> 时（公共 &lt; m，推断 m=0），溢出部分 <code>m2 = n − 公共领土</code> 触发<b>抢夺</b>，由 <code>(p)</code> 发起。</p>
+    <h3>10.1 抢夺流程</h3>
+    <ol>
+      <li>除 <code>(p)</code> 外，<b>当前私有领土最高者</b> 与 <code>(p)</code> 各掷一次骰。</li>
+      <li>若<b>点数平手</b>，则双方重新掷骰，直至分出高低。</li>
+      <li><b>点数更高者</b> 获得 <code>(m2 − r)</code> 领土（r 为随机量，<code>0 &lt; r ≤ m2</code>）。</li>
+      <li><b>点数更低者</b> 减少 <code>m2</code> 领土。</li>
+      <li>差额 <code>r</code> <b>回归公共领土</b>。</li>
+    </ol>
+    <div class="note tip"><b>要点</b>抢夺本质是"盈家与当前霸主"对溢出领土的裁决；<code>r</code> 作为损耗回归公共池，使公共领土有微量回血可能。</div>
+    <div class="note danger"><b>限制</b><b>抢夺只能被触发一次</b>。同一局中第二次尝试触发抢夺时，不再走抢夺流程，而是直接升级为 <b>崩坏</b>（见 §11）。</div>
+  </section>
+
+  <!-- 11 -->
+  <section class="card" id="s11">
+    <h2><span class="num">11</span>特殊机制：崩坏</h2>
+    <p>当<b>抢夺被多次触发</b>（即第二次本应触发抢夺时），系统进入<b>崩坏</b>状态——月球环境失衡，所有玩家共同受损。</p>
+    <h3>11.1 崩坏结算</h3>
+    <ol>
+      <li>在<b>所有玩家的私有领土</b>中，各自随机减少一个介于 <code>0</code> 与 <code>(x × m2) / 4</code> 之间的数量。</li>
+      <li>发起崩坏的玩家 <code>(p)</code> 的私有领土，额外减少 <code>(x × m2) − 其他玩家已减少的领土之和</code>。</li>
+      <li><b>公共领土 − x</b>（进一步萎缩）。</li>
+      <li>崩坏系数 <code>x</code> 初始为 <span class="val">2</span>，<b>每触发一次崩坏，x + 1</b>。</li>
+    </ol>
+    <div class="note warn"><b>规则缺口 · 随机减少的分配</b>原文"在所有私人领土中随机减少一个 ≥0 且 ≤ (x·m2)/4 的数"语义偏模糊。本计划书推断为<b>每位玩家独立随机损失 0 ~ (x·m2)/4</b>，发起者再承担剩余缺口。若应为"全桌合计只减一个数"则需调整（见 §15）。</div>
+    <div class="note danger"><b>设计意图</b>崩坏是惩罚"过度争夺"的熔断阀：x 随次数递增，意味着反复触发会让公共池与私人池同步塌缩，加速终局并制造大洗牌。</div>
+  </section>
+
+  <!-- 12 -->
+  <section class="card" id="s12">
+    <h2><span class="num">12</span>特殊回合：发射</h2>
+    <p><b>发射</b>是游戏唯一的序章回合，<b>仅在第一轮开始时</b>进行。所有玩家必须先"发射"飞船，才能进入后续的领土抢占。</p>
+    <table>
+      <thead><tr><th>规则</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>触发时机</td><td>仅游戏第一轮开始</td></tr>
+        <tr><td>发射条件</td><td>掷双骰之和 <b>≥ 7</b> 即发射成功，退出发射模式</td></tr>
+        <tr><td>发射奖励</td><td>成功后私有领土 <b>+2</b></td></tr>
+        <tr><td>失败处理</td><td>发射失败者直接跳到下一玩家；<b>下一回合继续尝试发射</b></td></tr>
+        <tr><td>成功处理</td><td>发射成功者正常进入游戏循环</td></tr>
+        <tr><td>全员约束</td><td>必须<b>所有玩家都发射成功</b>，占领阶段才开始</td></tr>
+      </tbody>
+    </table>
+    <div class="note tip"><b>关联</b>触发"开发过度"而被清零的玩家，需<b>重新发射</b>才能再次参与（参照本回合规则，掷 ≥7 恢复资格，成功后 +2）。</div>
+  </section>
+
+  <!-- 13 -->
+  <section class="card" id="s13">
+    <h2><span class="num">13</span>网页实现要点</h2>
+    <p>作为网页游戏，以下模块建议作为 MVP（最小可行产品）核心，对应上述每一条机制：</p>
+    <h3>13.1 界面组件</h3>
+    <table>
+      <thead><tr><th>组件</th><th>对应机制</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>公共领土进度条</td><td>§4 / §7 / §11</td><td>实时显示 100→0，归零触发终局</td></tr>
+        <tr><td>玩家面板 ×4</td><td>§4 / §7 / §9</td><td>显示私有领土、连续对子计数、荒地标记</td></tr>
+        <tr><td>骰子区 + 掷骰按钮</td><td>§7 / §8 / §12</td><td>支持单骰（稳健）与双骰（激进/发射）</td></tr>
+        <tr><td>模式选择器</td><td>§8</td><td>稳健 / 激进 / 不开发 三态切换</td></tr>
+        <tr><td>抢夺 / 崩坏弹窗</td><td>§10 / §11</td><td>裁决动画 + 随机量 r 展示</td></tr>
+        <tr><td>行动日志</td><td>全局</td><td>记录每回合占领、开发、抢夺、崩坏</td></tr>
+      </tbody>
+    </table>
+    <h3>13.2 状态与随机数</h3>
+    <ul>
+      <li>公共 / 私有领土应作为单一可信状态源（如前端 store 或后端权威房间），避免多端不一致。</li>
+      <li><code>r</code>、崩坏随机损失等均需可复现的随机源；若含联机，随机种子应由服务器下发以保证公平。</li>
+      <li>对子判定、连续计数需跨回合持久化（开发链状态机）。</li>
+    </ul>
+    <h3>13.3 技术建议</h3>
+    <p>纯前端即可实现单人 / 同屏多人；若需联网对战，建议采用 WebSocket 房间 + 服务端权威结算。推荐栈：React/Vue + TypeScript + Canvas/SVG 进度条；后端 Node（与现有运行时一致）。</p>
+  </section>
+
+  <!-- 14 -->
+  <section class="card" id="s14">
+    <h2><span class="num">14</span>术语表</h2>
+    <dl class="gloss">
+      <dt>公共领土</dt><dd>月球上所有玩家共享、可被瓜分的领土，初始 100，归零即终局。</dd>
+      <dt>私有领土</dt><dd>各玩家独立积累、决定胜负的最终数值，初始 0。</dd>
+      <dt>占领</dt><dd>把 m 点领土从公共池转移到自己私有名下。</dd>
+      <dt>抢夺</dt><dd>占领溢出公共池时，发起者与私有最高者裁决溢出量 m2 的特殊机制。</dd>
+      <dt>崩坏</dt><dd>抢夺被二次触发时的全局惩罚机制，系数 x 随次数递增。</dd>
+      <dt>开发 / 大开发</dt><dd>连续 1 / 2 次对子触发的领土 ×2 / ×3 奖励。</dd>
+      <dt>开发过度</dt><dd>连续 3 次对子触发，私有领土清零并标记荒地，需重新发射。</dd>
+      <dt>荒地</dt><dd>开发过度后私有领土的状态，不计数、不回归公共。</dd>
+      <dt>发射</dt><dd>首轮专属序章，掷 ≥7 成功方可参与占领，成功 +2。</dd>
+      <dt>r</dt><dd>抢夺中回归公共的随机损耗量，0 &lt; r ≤ m2。</dd>
+    </dl>
+  </section>
+
+  <!-- 15 -->
+  <section class="card" id="s15">
+    <h2><span class="num">15</span>待澄清问题</h2>
+    <p class="lead">以下为原始计划书中含义不明确、本计划书已做合理推断之处，需在评审时确认。</p>
+    <table>
+      <thead><tr><th>#</th><th>问题</th><th>本计划书推断</th></tr></thead>
+      <tbody>
+        <tr><td>Q1</td><td>§4 "抢夺阈值 m" 未给出具体值。</td><td>推断 <code>m = 0</code>，即占领使公共领土为负时触发抢夺。</td></tr>
+        <tr><td>Q2</td><td>§4 "五个记录物"用途未说明。</td><td>推断为 1 公共 + 4 私有领土记录位（网页版用状态栏替代）。</td></tr>
+        <tr><td>Q3</td><td>§8 "不开发"与"稳健"是否等价。</td><td>暂按"中性、不触发开发链"处理，待确认。</td></tr>
+        <tr><td>Q4</td><td>§9 "翻倍"基数未说明。</td><td>推断为本回合应得点数 n 的倍率，而非私有总额翻倍。</td></tr>
+        <tr><td>Q5</td><td>§10 "点数平时再掷"语义。</td><td>推断为"平手再掷"的裁决重掷。</td></tr>
+        <tr><td>Q6</td><td>§11 崩坏"随机减少一个数"的分配。</td><td>推断为每位玩家独立随机损失 0~(x·m2)/4，发起者承担剩余。</td></tr>
+        <tr><td>Q7</td><td>§3 终局私有领土平局裁决。</td><td>建议"先达成者胜"或加赛一回合，待定。</td></tr>
+        <tr><td>Q8</td><td>§9 开发链计数在玩家未行动 / 选稳健时是否清零。</td><td>建议"非对子即清零连续计数"，待确认。</td></tr>
+      </tbody>
+    </table>
+    <div class="note warn"><b>评审提示</b>上述 8 项为高优先级澄清项；其中 Q1、Q4、Q6 直接影响数值平衡，建议在实现前先拍板。</div>
+  </section>
+
+  <footer>
+    《第二绿洲》The Second Oasis · 网页游戏计划书 v1.0 · 依据（人工）项目游戏计划.txt 编制 · 2026-07-25<br>
+    本计划书为结构化重构版本，忠实还原原始规则并对歧义点做了显式标注。
+  </footer>
+
+</div>
+</body>
+</html>
