@@ -4,6 +4,75 @@
 
 ---
 
+## [1.2.1] — 2026-07-28
+
+> **控制台月球视口重制 + 退出/抢夺修复 + favicon**。
+
+### 主菜单月球视口重制
+
+- **数字化扫描月球**：干净的新拟态球面 + 6 道等高线 + 数字扫描线 + DEM 网格 + 自转经纬线
+- **外圈装饰**：6 层同心测量环（虚线）/ 16 根径向标尺（4 主 12 副）/ 12 赤道上下刻度 / 5 档测距标注
+- **四周 HUD 遥测**（16 项，四角集群，月球中心相对定位）：
+
+| 左上 | 右上 |
+|---|---|
+| TARGET ID · 赤经 RA · 赤纬 Dec · 视直径 | MISSION: OASIS-3 · 轨道倾角 · 公转周期 · 远地点 |
+| 左下 | 右下 |
+| 地月距 · 表面温度 · 表面重力 · 自转周期 | SCAN MODE · 进度 · 分辨率 · 帧率 |
+
+### BUG 修复
+
+- **退出按钮无响应**：`_HandleLaunch` / `_HandleSelectMode` / `_HandleTiebreaker` 在 await 后立即检查 `_QuitRequested` 短路 return，不再执行多余掷骰/动画
+- **主动抢夺后游戏卡死**：`InitiateRobbery` 不再内部 `AdvanceToNextPlayer`，改为存储到 `_PendingRobberyTurn` 交由 `PlayTurn(None)` 统一推进
+
+### 其他
+
+- **favicon**：内联 SVG，消除 404
+- **游戏内隐藏设置齿轮**：`_SettingsGear.style.display = 'none'`，回菜单恢复
+
+### 验证
+
+- `tsc --noEmit` 零错误 · `npm run build:gh` 成功（229KB / gzip 73KB）
+
+---
+
+## [1.2.0] — 2026-07-27
+
+> **新拟态 UI 全面重构**。从像素风+CRT霓虹+赛博骨架彻底转向 Neumorphism，24 个文件全量翻新。暗色 #202020 / 亮色 #e0e0e0 双主题 CSS 变量驱动。
+
+### 视觉语言
+
+- **纯新拟态控件**：凸起 → hover 上浮 2px → active 凹陷，三级阴影 sm/md/lg
+- **圆角**：容器 8px / 元素 4px / 相交边 0px
+- **色彩**：暗底 #202020，亮底 #e0e0e0，正文 #d0d0d0 / #202020，阵营色降饱和度
+- **强调色** #00F5D4（暗）/ #202020（亮）仅用于文字和选中态
+
+### 删除（~600 行 CSS）
+
+- pixel-border / pixel-btn / glow-oasis / glow-alert
+- crt-overlay / crt-vignette / crt-alert + 红色闪烁
+- 9 个 clip-path 斜切（ignition / link-btn / console-btn / turn-banner 等）
+- 全部赛博角标装饰 + 渐变背景 + image-rendering: pixelated
+- FACTION_COLORS_DIM 硬编码暗色调色板
+
+### Canvas 新拟态化
+
+- **骰子**：硬投影+霓虹辉光 → 双层新拟态描边
+- **看板**：底色/描边/四角支架走调色板
+- **月球**：外发光 blur 28→20，辉光 blur 14→8
+- **抗锯齿**：移除 `imageSmoothingEnabled=false`
+
+### UI 改进
+
+- 愚人牌→愚者牌 / 席位 top:8→58px / 卡牌左溢出修复
+- JS 主题色覆盖修复 / 配置对话框增高 / 阵营名可编辑
+
+### 验证
+
+- `tsc --noEmit` 零错误 · `npm run build:gh` 成功（225KB / gzip 72KB）
+
+---
+
 ## [1.1.0] — 2026-07-27
 
 > **技能卡罗牌系统**。78 张塔罗牌加入战场——大阿尔卡那改写战局，小阿尔卡那四花色各司其职。指令/反制/恒常三种类型 + AP 领土消耗机制 + 像素风手牌 UI + 蒙特卡洛平衡验证。
