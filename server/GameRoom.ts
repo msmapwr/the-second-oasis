@@ -177,6 +177,28 @@ export class GameRoom {
     return Result;
   }
 
+  HandleUseCard(PlayerId: PlayerId, InstanceId: number, TargetPlayerId: PlayerId | null): { success: boolean; cardId: string; cardType: string } | { Error: string } {
+    if (!this._Store) return { Error: 'GAME_NOT_STARTED' };
+    if (!this._Store.CardEnabled) return { Error: 'SERVER_ERROR' };
+    if (PlayerId !== this._Store.CurrentPlayer) return { Error: 'NOT_YOUR_TURN' };
+
+    const Record = this._Store.UseCard(PlayerId, InstanceId, TargetPlayerId);
+    if (!Record) return { Error: 'SERVER_ERROR' };
+
+    this.Broadcast({
+      type: 'CARD_RESULT',
+      payload: {
+        playerId: PlayerId,
+        cardId: Record.CardId,
+        cardType: Record.CardType,
+        snapshot: this._Store.Snapshot,
+        currentPlayer: this._Store.CurrentPlayer,
+      },
+    });
+
+    return { success: true, cardId: Record.CardId, cardType: Record.CardType };
+  }
+
   /**
    * 处理加赛操作
    */
@@ -359,6 +381,13 @@ export class GameRoom {
         this.HandleAttemptLaunch(PlayerId);
       }
     } else if (Phase === GamePhase.SelectMode) {
+      const CardDecisions = this._AI.GetCardDecisions(
+        this._Store as unknown as Parameters<IAIController['GetCardDecisions']>[0],
+        PlayerId,
+      );
+      for (const D of CardDecisions) {
+        this.HandleUseCard(PlayerId, D.InstanceId, D.TargetId);
+      }
       const Mode = this._AI.SelectDiceMode(
         this._Store as unknown as Parameters<IAIController['SelectDiceMode']>[0],
         PlayerId,

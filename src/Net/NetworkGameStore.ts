@@ -25,7 +25,7 @@ import type { TurnResult } from '@/Types/Turn';
 import type { TiebreakerRound, GameResult } from '@/Types/GameResult';
 import { WebSocketClient, ConnectionState } from './WebSocketClient';
 import { ClientMsg } from './Messages';
-import type { TurnResultPayload, LaunchResultPayload, TiebreakerResultPayload, GameOverPayload, GameStartingPayload } from './Messages';
+import type { TurnResultPayload, LaunchResultPayload, TiebreakerResultPayload, GameOverPayload, GameStartingPayload, CardResultPayload, HandUpdatePayload } from './Messages';
 
 /** 默认超时时间（毫秒） */
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -341,8 +341,16 @@ export class NetworkGameStore implements IGameStore {
 
     this._Client.On('GAME_OVER', (_Payload: GameOverPayload) => {
       if (this._LocalStore && this._LocalStore.Result) {
-        // 本地 Store 应该已经有了 Result，直接触发事件
       }
+    });
+
+    this._Client.On('CARD_RESULT', (Payload: CardResultPayload) => {
+      if (this._LocalStore && this._LocalStore.CardEnabled) {
+        this._LocalStore.UseCard(Payload.playerId, 0, null);
+      }
+    });
+
+    this._Client.On('HAND_UPDATE', (_Payload: HandUpdatePayload) => {
     });
   }
 
@@ -411,7 +419,21 @@ export class NetworkGameStore implements IGameStore {
   GetCardSnapshot() { return this._LocalStore?.GetCardSnapshot() ?? { DeckSize: 0, DiscardSize: 0, Hands: new Map(), ActiveConstantCount: 0 }; }
   GetCardPlayableCards(PlayerId: PlayerId) { return this._LocalStore?.GetCardPlayableCards(PlayerId) ?? []; }
   CanPlayCard(PlayerId: PlayerId, InstanceId: number) { return this._LocalStore?.CanPlayCard(PlayerId, InstanceId) ?? false; }
-  UseCard(PlayerId: PlayerId, InstanceId: number, TargetPlayerId: PlayerId | null) { return this._LocalStore?.UseCard(PlayerId, InstanceId, TargetPlayerId) ?? null; }
+  async UseCardAsync(PlayerId: PlayerId, InstanceId: number, TargetPlayerId: PlayerId | null): Promise<CardResultPayload> {
+    const Result = await this._Client.SendAndWait<CardResultPayload>(
+      ClientMsg.UseCard(InstanceId, TargetPlayerId),
+      DEFAULT_TIMEOUT_MS,
+    );
+    if (this._LocalStore) {
+      this._LocalStore.UseCard(PlayerId, InstanceId, TargetPlayerId);
+    }
+    return Result;
+  }
+
+  UseCard(PlayerId: PlayerId, InstanceId: number, TargetPlayerId: PlayerId | null) {
+    this.UseCardAsync(PlayerId, InstanceId, TargetPlayerId);
+    return this._LocalStore?.UseCard(PlayerId, InstanceId, TargetPlayerId) ?? null;
+  }
   GetCardActiveConstants() { return this._LocalStore?.GetCardActiveConstants() ?? 0; }
   ScryTopCards(Count: number) { return this._LocalStore?.ScryTopCards(Count) ?? []; }
   ScryPickCard(PlayerId: PlayerId, InstanceId: number) { return this._LocalStore?.ScryPickCard(PlayerId, InstanceId) ?? false; }

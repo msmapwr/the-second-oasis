@@ -50,6 +50,7 @@ export type ClientMessageType =
   | 'PLAY_TURN'
   | 'ATTEMPT_LAUNCH'
   | 'RUN_TIEBREAKER'
+  | 'USE_CARD'
   | 'SPECTATE_ROOM'
   | 'HEARTBEAT';
 
@@ -89,6 +90,12 @@ export interface SpectateRoomPayload {
   roomCode: string;
 }
 
+/** 使用卡牌 */
+export interface UseCardPayload {
+  instanceId: number;
+  targetPlayerId: PlayerId | null;
+}
+
 /**
  * 客户端消息联合类型
  * 每个消息 = type 标识 + payload 载荷
@@ -101,6 +108,7 @@ export type ClientMessage =
   | { type: 'PLAY_TURN'; payload: PlayTurnPayload }
   | { type: 'ATTEMPT_LAUNCH'; payload: AttemptLaunchPayload }
   | { type: 'RUN_TIEBREAKER'; payload: RunTiebreakerPayload }
+  | { type: 'USE_CARD'; payload: UseCardPayload }
   | { type: 'SPECTATE_ROOM'; payload: SpectateRoomPayload }
   | { type: 'HEARTBEAT'; payload: Record<string, never> };
 
@@ -117,6 +125,9 @@ export type ServerMessageType =
   | 'LAUNCH_RESULT'
   | 'TIEBREAKER_RESULT'
   | 'GAME_OVER'
+  | 'CARD_RESULT'
+  | 'COUNTER_WINDOW'
+  | 'HAND_UPDATE'
   | 'PLAYER_DISCONNECTED'
   | 'PLAYER_RECONNECTED'
   | 'SPECTATOR_JOINED'
@@ -241,6 +252,28 @@ export interface SpectatorUpdatePayload {
   currentPlayer: PlayerId;
 }
 
+/** 卡牌使用结果（广播） */
+export interface CardResultPayload {
+  playerId: PlayerId;
+  cardId: string;
+  cardType: string;
+  snapshot: TerritorySnapshot;
+  currentPlayer: PlayerId;
+}
+
+/** 反制窗口通知 */
+export interface CounterWindowPayload {
+  triggerType: 'Robbery' | 'Collapse';
+  timeoutMs: number;
+  eligiblePlayers: PlayerId[];
+}
+
+/** 手牌更新通知 */
+export interface HandUpdatePayload {
+  playerId: PlayerId;
+  cardCount: number;
+}
+
 /**
  * 服务端消息联合类型
  * 每个消息 = type 标识 + payload 载荷
@@ -255,6 +288,9 @@ export type ServerMessage =
   | { type: 'LAUNCH_RESULT'; payload: LaunchResultPayload }
   | { type: 'TIEBREAKER_RESULT'; payload: TiebreakerResultPayload }
   | { type: 'GAME_OVER'; payload: GameOverPayload }
+  | { type: 'CARD_RESULT'; payload: CardResultPayload }
+  | { type: 'COUNTER_WINDOW'; payload: CounterWindowPayload }
+  | { type: 'HAND_UPDATE'; payload: HandUpdatePayload }
   | { type: 'PLAYER_DISCONNECTED'; payload: PlayerDisconnectedPayload }
   | { type: 'PLAYER_RECONNECTED'; payload: PlayerReconnectedPayload }
   | { type: 'SPECTATOR_JOINED'; payload: SpectatorJoinedPayload }
@@ -336,6 +372,10 @@ export const ClientMsg = {
   RunTiebreaker: (): ClientMessage => ({
     type: 'RUN_TIEBREAKER',
     payload: {},
+  }),
+  UseCard: (InstanceId: number, TargetPlayerId: PlayerId | null): ClientMessage => ({
+    type: 'USE_CARD',
+    payload: { instanceId: InstanceId, targetPlayerId: TargetPlayerId },
   }),
   SpectateRoom: (RoomCode: string): ClientMessage => ({
     type: 'SPECTATE_ROOM',
