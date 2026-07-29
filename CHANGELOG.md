@@ -4,6 +4,37 @@
 
 ---
 
+## [1.4.2] — 2026-07-29
+
+> **修复退出后空白与回放不显示**。修复对战 / 联机 / 回放三种退出路径卡死主循环（白屏），以及回放界面月球看板空白、回退 / 跳转后 HUD 不刷新的问题。
+
+### 退出后空白（主循环卡死）
+- `AppController.Run()` 主循环不再对所有子流程无条件 `await _WaitGameOverChoice()`，仅真正弹终局时才等待
+- 新增 `FlowResult = 'restart' | 'menu' | 'quit'`，`_PlayGame` / `_PlayMultiplayer` 改为返回退出去向
+- 对战退出 / 联机退出 / 回放关闭 / 档案关闭 均正常回到主菜单，不再永久挂起
+- 观战模式中途退出：等待 `GameOver` 同时轮询 `_QuitRequested`，Esc / 退出按钮可正常中断
+- `quit` 重置 `LastLocalConfig`，避免误自动重开本地局
+
+### 回放看板空白
+- `_PlayReplay` 改为将看板数据源绑定到 `ReplayEngine`（`_Board.SetSource(Player.Engine)`）并 `ResumeLayers()`，关闭时复位
+- `ReplayPlayer` 新增 `get Engine()` 暴露回放引擎供看板订阅
+
+### 回放回退 / 跳转后 HUD 不刷新
+- `ReplayEngine` 改为持有自身 `EventEmitter`，内部 store 事件转发到该发射器
+- `StepBackward` / `JumpTo` 重建内部 store 时仅重新订阅内部 store，外部订阅者（`GameStageView`）无感，进度刷新正常
+
+### 文件变更
+
+| 操作 | 文件 |
+|------|------|
+| 修改 | `src/App/AppController.ts`, `src/Store/ReplayEngine.ts`, `src/UI/Components/ReplayPlayer.ts` |
+
+### 验证
+- `tsc --noEmit` 零错误
+- `vite build` 成功（exit 0；`GameState.ts` 既有 "duplicate case clause" 警告与本次无关）
+
+---
+
 ## [1.4.1] — 2026-07-29
 
 > **移动端适配与性能优化 + 玩家档案与数据实验室**。三档响应式布局（手机/平板/桌面）+ 触屏手势 + Canvas 按需渲染 + Vite 分块 + 性能监控 + 档案面板 + 数据实验室。
