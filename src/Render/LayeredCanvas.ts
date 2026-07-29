@@ -67,6 +67,7 @@ export class LayeredCanvas {
   private _Running = false;
   /** 主层 + 特效层是否暂停（菜单/终局态省 CPU/GPU） */
   private _LayersPaused = false;
+  private _FxActive = true;
   private readonly _OnBgFrame?: LayerRenderFn;
   private readonly _OnBoardFrame?: LayerRenderFn;
   private readonly _OnFxFrame?: LayerRenderFn;
@@ -163,7 +164,9 @@ export class LayeredCanvas {
     // 主层 + 特效层每帧——菜单/终局态暂停以省 CPU/GPU
     if (!this._LayersPaused) {
       this._OnBoardFrame?.(Ts, Dt);
-      this._OnFxFrame?.(Ts, Dt);
+      if (this._FxActive) {
+        this._OnFxFrame?.(Ts, Dt);
+      }
     }
   };
 
@@ -183,6 +186,15 @@ export class LayeredCanvas {
    */
   ResumeLayers(): void {
     this._LayersPaused = false;
+  }
+
+  PauseFx(): void {
+    this._FxActive = false;
+    this.FxCtx.Clear();
+  }
+
+  ResumeFx(): void {
+    this._FxActive = true;
   }
 
   /**

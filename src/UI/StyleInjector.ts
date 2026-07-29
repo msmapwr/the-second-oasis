@@ -1284,6 +1284,25 @@ html, body {
   color: var(--alert);
   box-shadow: var(--nm-raised-md);
 }
+.settings-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.settings-tab:hover {
+  color: var(--text-primary);
+}
+.settings-tab.active {
+  color: var(--oasis);
+  border-bottom-color: var(--oasis);
+}
 
 .settings-body {
   flex: 1;
@@ -1785,6 +1804,37 @@ canvas {
 
 [data-theme="light"] .btn-ripple {
   background: rgba(0, 0, 0, 0.15);
+}
+n/* ===== v1.4.1 响应式 ===== */
+@media (max-width: 480px) {
+  .control-console { position:fixed !important; bottom:20px !important; right:16px !important; left:auto !important; width:auto !important; padding:0 !important; background:none !important; box-shadow:none !important; border:none !important; display:flex !important; flex-direction:column !important; gap:10px !important; }
+  .console-btn { width:52px !important; height:52px !important; border-radius:50% !important; padding:0 !important; font-size:0 !important; display:flex !important; align-items:center !important; justify-content:center !important; }
+  .console-btn span { font-size:18px !important; }
+  .console-btn .btn-hint { display:none !important; }
+  .console-btn.quit-btn { width:40px !important; height:40px !important; }
+  .quit-btn span { font-size:14px !important; }
+  #card-hand-container { bottom:20px !important; left:8px !important; max-width:calc(100vw - 90px) !important; }
+  .card-face { width:72px !important; min-width:72px !important; padding:6px 5px !important; font-size:9px !important; }
+  .card-face .card-suit { font-size:14px !important; }
+  .card-face .card-name { font-size:9px !important; }
+  .card-face .card-cost-hint { font-size:8px !important; }
+  .card-face .card-effect { display:none !important; }
+  .card-play-btn-mini { padding:2px 6px !important; font-size:10px !important; }
+  .player-seat { padding:6px 8px !important; }
+  .seat-head { font-size:11px !important; }
+  .seat-value { font-size:18px !important; }
+  .seat-flags { display:none !important; }
+  .combo-badge { font-size:8px !important; }
+  .header-hud { padding:6px 10px !important; font-size:11px !important; }
+  .battle-log { display:none !important; }
+  .turn-banner { font-size:16px !important; top:50px !important; }
+  .gameover-card { padding:24px 20px !important; max-width:95vw !important; }
+  .gameover-card .font-display { font-size:28px !important; }
+}
+@media (min-width: 481px) and (max-width: 1024px) {
+  .control-console { padding:8px 12px !important; }
+  .card-face { width:90px !important; }
+  .gameover-card { max-width:80vw !important; }
 }
 `;
 

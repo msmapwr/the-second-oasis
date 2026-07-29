@@ -4,6 +4,136 @@
 
 ---
 
+## [1.4.1] — 2026-07-29
+
+> **移动端适配与性能优化 + 玩家档案与数据实验室**。三档响应式布局（手机/平板/桌面）+ 触屏手势 + Canvas 按需渲染 + Vite 分块 + 性能监控 + 档案面板 + 数据实验室。
+n### 触屏手势系统
+
+- `TouchGestures.ts`：`TouchDetector` 检测滑动方向 + 长按 + 点按，`SetupGlobalTouch` 全局禁用缩放与长按菜单
+- 滑动选择模式：上滑=激进 / 下滑=稳健 / 左滑=不开发
+- 长按卡牌触发 Tooltip 放大详情
+- 同时支持 touch 和 mouse 事件
+
+### 响应式三档布局
+
+- `Breakpoints.ts` + `LayoutManager` 重写：新增 `DeviceClass`（Phone ≤480 / Tablet 481~1024 / Desktop >1024）
+- 手机：控制台→右侧浮动圆形按钮，卡牌栏左下缩窄至 72px，席位简化，日志隐藏
+- 平板：控制台轻度紧凑、卡牌 90px
+- `StyleInjector` 新增 `@media` 响应式 CSS 块
+
+### Canvas 按需渲染
+
+- `LayeredCanvas` 新增 `PauseFx() / ResumeFx()`：骰子闲置时暂停 FX 层
+- 背景星空 ~30fps 降帧
+- 菜单/终局态暂停主层+FX层
+
+### 首屏加载优化
+
+- `vite.config.ts` 新增 `rollupOptions.output.manualChunks` 按模块分块 vendor-core/card/ai/ui
+
+### 性能监控面板
+
+- 设置面板新增性能监控区域：实时 FPS计数器 + `performance.memory` 内存 + 加载时间
+
+
+
+### 玩家档案面板
+
+- `StatsStore`：localStorage 持久化聚合统计——总局数、胜率、最大领土、最长开发链、最多抢夺胜、最长对局
+- 每局结束后自动记录（仅本地热座）：从 `ReplayRecorder` 事件中提取开发链倍数、抢夺胜数、卡牌使用详情
+- 花色拆分：`GetSuitBreakdown` 返回五花色分布与百分比
+- TOP 5 最常用牌：按使用次数降序排列
+- `ProfilePanel` 组件：统计卡片网格 + 花色柱状图 + 卡牌排名
+- 主菜单新增「档案 PROFILE」按钮，点击进入档案面板
+- 「清除统计」按钮：一键重置所有游戏记录
+
+### 数据实验室
+
+- 设置面板新增「数据实验室」标签页
+- 运行 300 局蒙特卡洛仿真（2/3/4 人各 100 局含卡牌），复用现有 `RunSimulation`
+- 柱状图展示：胜率分布、平均回合数、抢夺/崩坏触发率、花色使用率
+- 纯 CSS div 柱状图，不引入第三方图表库
+
+### 隐私控制
+
+- 设置面板新增「匿名数据收集」开关（默认关闭，localStorage 持久化）
+- `ProfilePanel` 内嵌「清除统计」按钮
+
+### 文件变更
+
+| 操作 | 文件 |
+|------|------|
+| 新建 | `src/Store/StatsStore.ts`, `src/UI/Components/ProfilePanel.ts`, `src/UI/TouchGestures.ts` |
+| 修改 | `src/UI/Layout/Breakpoints.ts`, `src/UI/Layout/LayoutManager.ts`, `src/UI/StyleInjector.ts`, `src/Render/LayeredCanvas.ts` |
+| 修改 | `src/UI/Components/MainMenu.ts`, `src/UI/Components/SettingsPanel.ts`, `src/App/AppController.ts`, `vite.config.ts` |
+| 修改 | `src/App/AppController.ts` |
+
+### 验证
+
+- `tsc --noEmit` 零错误
+- `vitest run` 340/344 通过（4 预存失败不变）
+
+---
+
+## [1.4.0] — 2026-07-28
+
+> **观战与回放系统**。联机大厅可浏览已开局房间并观战，每局自动录制回放存入浏览器 IndexedDB，回放面板支持逐回合播放/跳转/变速，数据可导出为 JSON 文件分享。
+
+### 联机观战模式
+
+- **大厅房间列表**：`GET_ROOM_LIST` / `ROOM_LIST` 协议，主菜单「观战」入口浏览全部 `Playing` 房间，显示房间码、房主、人数、观战人数
+- **观战视角**：`SpectatorGameStore` 实现 `IGameStore` 只读接口，通过 `HAND_REVEAL` 缓存所有玩家完整手牌（正面可见）
+- **观战者不可操作**：所有写方法抛 `SPECTATOR_CANNOT_ACT`，控制台隐藏，底部显示「观战中」水印
+- **服务端**：`_BroadcastHandReveal` 在回合结束/卡牌使用后仅向 spectators 推送全手牌；观战者断线只移除连接不影响对局
+
+### 对局回放录制
+
+- **ReplayRecorder**：订阅 `GameStore` 的 `Launch / Turn / Tiebreaker / CardUsed / GameOver / PhaseChange / RoundChange` 事件流，构造不可变事件数组
+- **ReplayStore 重写**：从 localStorage 迁移到 IndexedDB（`second-oasis-replays`），支持 `CompressionStream` gzip 压缩，LRU 淘汰上限 50 条 / 100MB
+- **CardUsed 事件增强**：GameStore 事件增加 `InstanceId` + `Record: CardPlayedRecord`，确保回放可精确复现卡牌使用
+- **关键帧优化**：每 50 个事件插入 `Keyframe` 快照，加速回放跳转
+
+### 回放面板
+
+- **回放列表** `ReplayListPanel`：显示种子、日期、人数、回合数；支持播放/删除/导出
+- **回放引擎** `ReplayEngine`：基于同一 `seed` + `playerCount` 重建 `GameStore`，按事件逐步推进，`JumpTo` / `StepForward` / `StepBackward` 支持拖拽跳转
+- **回放播放器** `ReplayPlayer`：复用 `GameStageView`（spectator 模式），底部控制条提供 上一回合/播放暂停/下一回合/进度条/速度 1x·2x·4x，关闭按钮
+- **入口**：主菜单新增「回放 REPLAYS」按钮；终局界面新增「保存回放」按钮，保存后即时反馈确认提示
+
+### 回放数据导出/导入
+
+- **ReplaySerializer**：`ExportReplay` 使用 `CompressionStream` gzip 压缩 JSON，下载为 `.tso.json` 文件
+- **导入校验**：检测 gzip magic bytes 自动解压，校验 `version / seed / playerCount / events` 合法性，失败给出具体错误提示
+- 支持比赛复盘和社区内容创作场景
+
+### 协议扩展（v1.4.1 前置）
+
+- `GET_ROOM_LIST` (C→S) / `ROOM_LIST` (S→C)：大厅获取 Playing 房间摘要
+- `HAND_REVEAL` (S→C)：仅观战者，每玩家完整 `CardInstance[]` + 牌库/弃牌堆大小
+- `SPECTATOR_JOINED` 扩展：`initialState` 含 `hands / deckSize / discardSize / cardEnabled`
+- `CARD_RESULT` 扩展：新增 `cardInstanceId` / `targetPlayerId`
+- `NetworkGameStore` / `WebSocketClient` 同步适配
+
+### 文件变更
+
+| 操作 | 文件 |
+|------|------|
+| 新建 | `src/Types/Replay.ts`, `src/Store/ReplayRecorder.ts`, `src/Store/ReplayEngine.ts`, `src/Store/ReplaySerializer.ts` |
+| 新建 | `src/Net/SpectatorGameStore.ts`, `src/UI/Components/ReplayListPanel.ts`, `src/UI/Components/ReplayPlayer.ts` |
+| 修改 | `src/Net/Messages.ts`, `src/Net/WebSocketClient.ts`, `src/Net/LobbyClient.ts` |
+| 修改 | `src/Store/GameStore.ts`, `src/Store/ReplayStore.ts`（重写） |
+| 修改 | `src/UI/Components/MultiplayerLobby.ts`, `src/UI/Components/GameStageView.ts`, `src/UI/Components/ControlConsole.ts` |
+| 修改 | `src/UI/Components/MainMenu.ts`, `src/UI/Components/GameOverScreen.ts` |
+| 修改 | `src/App/AppController.ts`, `server/RoomManager.ts`, `server/GameRoom.ts`, `server/WebSocketServer.ts`, `server/Types.ts` |
+
+### 验证
+
+- `tsc --noEmit` 零错误
+- `vitest run` 340/344 通过（4 个预存失败不变）
+- 待完成：ReplayEngine / ReplayStore / SpectatorGameStore 专项单元测试
+
+---
+
 ## [1.3.2] — 2026-07-28
 
 > **联机卡牌同步**。多人游戏中卡牌系统完整可用——服务端权威裁决、AI 掉线托管升级、观战者可见所有手牌。

@@ -47,8 +47,13 @@ import { SaveReplay, LoadReplay } from '@/Store/ReplayStore';
 import { ExportReplay } from '@/Store/ReplaySerializer';
 import { ReplayListPanel, type ReplayListAction } from '@/UI/Components/ReplayListPanel';
 import { ReplayPlayer } from '@/UI/Components/ReplayPlayer';
+import { ProfilePanel } from '@/UI/Components/ProfilePanel';
 import type { StoredReplay, ReplayHeader } from '@/Types/Replay';
 import { REPLAY_VERSION } from '@/Types/Replay';
+import { RecordGame } from '@/Store/StatsStore';
+import { ALL_TAROT_CARDS } from '@/Core/Card/CardData';
+import { CardSuit } from '@/Types/Card';
+import { SetupGlobalTouch } from '@/UI/TouchGestures';
 import { On } from '@/UI/Dom';
 
 /**
@@ -105,6 +110,8 @@ export class AppController {
     this._MountPoint = Opts.MountPoint ?? document.getElementById('app')!;
     // 注入全局样式
     InjectGlobalStyles();
+    // 设置全局触屏控制（禁用缩放/长按菜单）
+    SetupGlobalTouch();
     // 创建布局管理器
     this._Layout = new LayoutManager();
     // 可访问性设置：先埋接口，后续设置 UI 直接读写
@@ -213,6 +220,9 @@ export class AppController {
         } else if (Action.Kind === 'Replays') {
           LastWasLocal = false;
           await this._ShowReplayList();
+        } else if (Action.Kind === 'Profile') {
+          LastWasLocal = false;
+          await this._ShowProfile();
         } else {
           LastWasLocal = false;
           const Played = await this._PlayMultiplayer();
@@ -449,6 +459,11 @@ export class AppController {
     // 终局
     const Result = Store.Result!;
     this._LogGameOver(Stage, Result);
+
+    // 记录玩家统计（本地热座 + 非观战）
+    if (IsLocal && !IsSpectator && this._Recorder) {
+      this._RecordGameStats(Result, this._Recorder.GetEvents(), Config);
+    }
 
     // 解绑键盘快捷键
     Input.UnbindKeyboard();
@@ -939,6 +954,67 @@ export class AppController {
     });
 
     this._Canvas?.PauseLayers();
+  }
+
+  /**
+   * 显示玩家档案
+   */
+  private async _ShowProfile(): Promise<void> {
+    await new Promise<void>((Resolve) => {
+      const Panel = new ProfilePanel(() => {
+        Panel.Unmount();
+        Resolve();
+      });
+      Panel.Mount(this._UiLayer!);
+    });
+  }
+
+  /**
+   * 记录对局统计
+   */
+  private _RecordGameStats(Result: GameResult, Events: readonly import('@/Types/Replay').ReplayEvent[], Config: StartConfig): void {
+    const Winner = Result.Winners[0];
+    if (!Winner) return;
+
+    let MaxDev = 0;
+    let RobWins = 0;
+    const CardUsage: Array<{ Suit: CardSuit; CardId: string; CardName: string }> = [];
+
+    for (const E of Events) {
+      if (E.type === 'Turn' && E.payload.DevOutcome) {
+        if (E.payload.DevOutcome.Multiplier > MaxDev) MaxDev = E.payload.DevOutcome.Multiplier;
+      }
+      if (E.type === 'Turn' && E.payload.Robbery && E.payload.Robbery.Winner === 'Initiator') {
+        RobWins++;
+      }
+      if (E.type === 'CardUsed' && E.payload.Record) {
+        // 从卡牌 ID 推断花色（目前 Record 不含花色，需查表——这里暂记 null，后续完善）
+        CardUsage.push({
+          Suit: CardSuit.Major, // 占位，实际需要从 CardData 查
+          CardId: E.payload.Record.CardId,
+          CardName: E.payload.Record.CardNameCn,
+        });
+      }
+    }
+
+    // 修正花色：从全量卡牌数据查找
+    for (const Use of CardUsage) {
+      const Def = ALL_TAROT_CARDS.find((C) => C.Id === Use.CardId);
+      if (Def) Use.Suit = Def.Suit as CardSuit;
+    }
+
+    const TotalTurns = Events.filter((E) => E.type === 'Turn').length;
+
+    const IsWin = Config.Players.some((P, I) => !P.IsAI && I === Winner.Id);
+
+    RecordGame({
+      IsWin,
+      FinalTerritory: Winner.PrivateTerritory,
+      MaxDevChain: MaxDev,
+      RobberyWins: RobWins,
+      TotalTurns,
+      CardUsage: CardUsage.map(({ Suit, CardId, CardName }) => ({ Suit, CardId, CardName })),
+    });
   }
 
   /**

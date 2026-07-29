@@ -14,6 +14,16 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-core': ['src/Core/GameState.ts'],
+          'vendor-card': ['src/Core/Card/CardData.ts'],
+          'vendor-ai': ['src/AI/AIDirector.ts'],
+          'vendor-ui': ['src/UI/Components/MainMenu.ts'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

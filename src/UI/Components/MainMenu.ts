@@ -20,7 +20,8 @@ export interface StartConfig {
 export type MainMenuAction =
   | { Kind: 'Local'; Config: StartConfig }
   | { Kind: 'Multiplayer' }
-  | { Kind: 'Replays' };
+  | { Kind: 'Replays' }
+  | { Kind: 'Profile' };
 
 const COLOR_PRESETS = [
   { Label: '亮', Color: COLORS.NmText },
@@ -177,6 +178,15 @@ export class MainMenu extends Component {
       Title: '观看已保存的对局回放',
     }) as HTMLButtonElement;
     this._CleanupFns.push(On(ReplaysBtn, 'click', () => this._StartReplays()));
+
+    const ProfileBtn = El({
+      Tag: 'button',
+      Class: 'link-btn font-display',
+      Parent: Console,
+      Text: '档案 PROFILE',
+      Title: '查看玩家统计与游戏记录',
+    }) as HTMLButtonElement;
+    this._CleanupFns.push(On(ProfileBtn, 'click', () => this._StartProfile()));
 
     El({
       Tag: 'div',
@@ -579,6 +589,10 @@ export class MainMenu extends Component {
 
   private _StartReplays(): void {
     this._OnAction({ Kind: 'Replays' });
+  }
+
+  private _StartProfile(): void {
+    this._OnAction({ Kind: 'Profile' });
   }
 
   protected _OnUnmount(): void {
