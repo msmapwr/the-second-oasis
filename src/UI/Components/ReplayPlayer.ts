@@ -48,6 +48,11 @@ export class ReplayPlayer extends Component {
     this._AnimManager = new AnimationManager(this._Accessibility);
   }
 
+  /** 暴露回放引擎，供 AppController 将 Canvas 看板绑定到回放状态 */
+  get Engine(): ReplayEngine {
+    return this._Engine;
+  }
+
   Mount(Parent: HTMLElement): void {
     const Root = El({
       Tag: 'div',

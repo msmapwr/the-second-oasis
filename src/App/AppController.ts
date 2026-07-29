@@ -65,6 +65,18 @@ export interface AppControllerOptions {
 }
 
 /**
+ * 子流程结束后的去向：
+ * - 'restart'：重玩本局（仅本地热座）
+ * - 'menu'：返回主菜单
+ * - 'quit'：对局/回放中途退出（同样回到主菜单，但不弹终局界面）
+ *
+ * 关键修复：此前 Run() 在所有子流程后都无条件 await _WaitGameOverChoice，
+ * 而该方法只在真正弹出终局界面时才会 resolve。退出对局/联机/回放时根本不弹终局，
+ * 导致 Promise 永久挂起、主循环卡死、屏幕空白。改为由各流程显式返回去向。
+ */
+type FlowResult = 'restart' | 'menu' | 'quit';
+
+/**
  * 主控制器
  *
  * 用法：
@@ -209,35 +221,28 @@ export class AppController {
    */
   async Run(): Promise<void> {
     let LastLocalConfig: StartConfig | null = null;
-    let LastWasLocal = false;
     while (true) {
-      if (!LastWasLocal || LastLocalConfig === null) {
+      if (LastLocalConfig === null) {
+        // 主菜单态：显示菜单并等待用户选择
         const Action = await this._ShowMenuAndWait();
         if (Action.Kind === 'Local') {
           LastLocalConfig = Action.Config;
-          LastWasLocal = true;
-          await this._PlayGame(LastLocalConfig);
+          const R = await this._PlayGame(LastLocalConfig);
+          // 仅显式“重玩”才保留配置自动重开；menu/quit 都回主菜单
+          if (R !== 'restart') LastLocalConfig = null;
         } else if (Action.Kind === 'Replays') {
-          LastWasLocal = false;
           await this._ShowReplayList();
         } else if (Action.Kind === 'Profile') {
-          LastWasLocal = false;
           await this._ShowProfile();
         } else {
-          LastWasLocal = false;
-          const Played = await this._PlayMultiplayer();
-          if (!Played) {
-            continue;
-          }
+          await this._PlayMultiplayer();
+          // 联机（含观战）结束后一律回主菜单
+          LastLocalConfig = null;
         }
       } else {
-        // 本地热座重玩
-        await this._PlayGame(LastLocalConfig);
-      }
-      const Choice = await this._WaitGameOverChoice();
-      if (Choice === 'menu') {
-        LastLocalConfig = null;
-        LastWasLocal = false;
+        // 本地热座重玩（仅来自“重玩本局”）
+        const R = await this._PlayGame(LastLocalConfig);
+        if (R !== 'restart') LastLocalConfig = null;
       }
     }
   }
@@ -261,9 +266,9 @@ export class AppController {
 
   /**
    * 联机流程：显示大厅 → 创建/加入房间 → 等待开局 → 进入对局
-   * @returns 是否实际开局（true=玩了，false=用户返回菜单）
+   * @returns 去向（'menu'=用户返回菜单；其余来自 _PlayGame 的 restart/menu/quit）
    */
-  private async _PlayMultiplayer(): Promise<boolean> {
+  private async _PlayMultiplayer(): Promise<FlowResult> {
     const Ref: { Lobby: MultiplayerLobby | null; NetStore: IGameStore | null } = {
       Lobby: null,
       NetStore: null,
@@ -278,7 +283,7 @@ export class AppController {
       if (Result.Kind === 'BackToMenu') {
         Ref.Lobby?.Unmount();
         Ref.Lobby = null;
-        return false;
+        return 'menu';
       }
 
       Ref.NetStore = Result.Store;
@@ -289,7 +294,7 @@ export class AppController {
 
       // 联机开局 或 观战
       const IsSpectator = Result.Kind === 'Spectating';
-      await this._PlayGame(
+      const Outcome = await this._PlayGame(
         {
           PlayerCount: PlayerCount as 2 | 3 | 4,
           Seed,
@@ -300,7 +305,7 @@ export class AppController {
         IsSpectator,
       );
 
-      return true;
+      return Outcome;
     } finally {
       if (Ref.NetStore) {
         if ('LeaveRoom' in Ref.NetStore) {
@@ -317,8 +322,9 @@ export class AppController {
    * 运行一局完整游戏
    * @param Config 游戏配置
    * @param ExistingStore 可选的外部 Store（联机模式传入 NetworkGameStore，热座模式不传则自动创建）
+   * @returns 去向（restart/menu/quit），由 Run() 决定后续流程
    */
-  private async _PlayGame(Config: StartConfig, ExistingStore?: IGameStore, IsSpectator = false): Promise<void> {
+  private async _PlayGame(Config: StartConfig, ExistingStore?: IGameStore, IsSpectator = false): Promise<FlowResult> {
     PlayerPalette.SetConfig(Config.Players);
     const Store = ExistingStore ?? new GameStore(
       Config.UseVariant
@@ -428,12 +434,21 @@ export class AppController {
         }
       }
     } else {
-      // 等待 WebSocket 推送的游戏结束事件
+      // 等待 WebSocket 推送的游戏结束事件；
+      // 同时轮询中途退出标志，避免观战模式下 Escape/退出按钮触发后永久挂起
       await new Promise<void>((Resolve) => {
         const Unsub = Store.On('GameOver', () => {
           Unsub();
+          window.clearInterval(Timer);
           Resolve();
         });
+        const Timer = window.setInterval(() => {
+          if (this._QuitRequested) {
+            Unsub();
+            window.clearInterval(Timer);
+            Resolve();
+          }
+        }, 50);
       });
     }
 
@@ -453,7 +468,8 @@ export class AppController {
       this._Board?.SetSource(null);
       this._Canvas?.PauseLayers();
       this._CurrentInput = null;
-      return;
+      // 中途退出：不弹终局界面，直接回主菜单
+      return 'quit';
     }
 
     // 终局
@@ -482,6 +498,9 @@ export class AppController {
     // 终局态：暂停主层+特效层渲染，省 CPU/GPU
     this._Canvas?.PauseLayers();
     this._ShowGameOver(Result);
+    // 等待用户在终局界面选择“重玩”或“返回主菜单”
+    const Choice = await this._WaitGameOverChoice();
+    return Choice;
   }
 
   /**
@@ -937,13 +956,14 @@ export class AppController {
    * 播放回放
    */
   private async _PlayReplay(Replay: StoredReplay): Promise<void> {
-    this._Board?.SetSource(null);
-    this._Canvas?.PauseLayers();
-
+    let Player: ReplayPlayer | null = null;
     await new Promise<void>((Resolve) => {
-      const Player = new ReplayPlayer(Replay, {
+      Player = new ReplayPlayer(Replay, {
         OnClose: () => {
-          Player.Unmount();
+          Player?.Unmount();
+          // 复位看板数据源并暂停渲染层，避免残留上一帧
+          this._Board?.SetSource(null);
+          this._Canvas?.PauseLayers();
           Resolve();
         },
         OnSaveAgain: () => {
@@ -951,9 +971,11 @@ export class AppController {
         },
       });
       Player.Mount(this._UiLayer!);
+      // 关键修复：把月球看板数据源绑定到回放引擎并恢复渲染层，
+      // 否则回放时中央看板完全空白（此前被置空并暂停了 Canvas 层）
+      this._Board?.SetSource(Player.Engine);
+      this._Canvas?.ResumeLayers();
     });
-
-    this._Canvas?.PauseLayers();
   }
 
   /**

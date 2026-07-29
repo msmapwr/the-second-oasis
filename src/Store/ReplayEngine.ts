@@ -17,21 +17,28 @@ import type { TurnResult } from '@/Types/Turn';
 import type { CardPlayedRecord } from '@/Types/Turn';
 import type { CardInstance, DeckSnapshot } from '@/Types/Card';
 import type { TiebreakerRound, GameResult } from '@/Types/GameResult';
-import type { Listener } from '@/Store/EventEmitter';
+import { EventEmitter, type Listener } from '@/Store/EventEmitter';
 import type { StoredReplay, ReplayEvent } from '@/Types/Replay';
 
 export class ReplayEngine implements IGameStore {
   private readonly _Replay: StoredReplay;
   private _Store: GameStore;
   private _CurrentIndex = 0;
+  /**
+   * 引擎自身维护的发射器。
+   * 内部 GameStore 在 StepBackward/JumpTo 时会被整体重建（新建实例），
+   * 若直接把订阅者的回调挂在内部 store 上，重建后旧 store 被丢弃、订阅失效，
+   * 导致回放回退/跳转时界面（GameStageView）不再刷新。
+   * 因此这里把内部 store 的事件转发到引擎自己的发射器，重建后只需重新订阅内部 store，
+   * 外部订阅者（GameStageView）完全无感。
+   */
+  private readonly _Emitter = new EventEmitter<StoreEvents>();
+  private _Unsub: Array<() => void> = [];
 
   constructor(Replay: StoredReplay) {
     this._Replay = Replay;
-    const Config = Replay.header.variant
-      ? CreateVariantConfig(Replay.header.playerCount, Replay.header.seed)
-      : CreateDefaultConfig(Replay.header.playerCount, Replay.header.seed);
-    this._Store = new GameStore(Config);
-    this._Store.Start();
+    this._Store = this._CreateStore();
+    this._BindStore();
   }
 
   // ===== 位置信息 =====
@@ -181,7 +188,7 @@ export class ReplayEngine implements IGameStore {
   }
 
   On<K extends keyof StoreEvents>(Type: K, Fn: Listener<StoreEvents[K]>): () => void {
-    return this._Store.On(Type, Fn);
+    return this._Emitter.On(Type, Fn);
   }
 
   // ===== 回放操作 =====
@@ -211,19 +218,47 @@ export class ReplayEngine implements IGameStore {
 
   // ===== 内部方法 =====
 
-  private _RebuildFromStart(): void {
+  /**
+   * 依据当前种子重建一个全新的内部 GameStore
+   */
+  private _CreateStore(): GameStore {
     const Config = this._Replay.header.variant
       ? CreateVariantConfig(this._Replay.header.playerCount, this._Replay.header.seed)
       : CreateDefaultConfig(this._Replay.header.playerCount, this._Replay.header.seed);
+    const Store = new GameStore(Config);
+    Store.Start();
+    return Store;
+  }
 
-    const NewStore = new GameStore(Config);
-    NewStore.Start();
+  /**
+   * 把内部 GameStore 的事件转发到引擎自己的发射器。
+   * 重建内部 store 时只需先解绑再重新调用本方法，外部订阅者不受影响。
+   */
+  private _BindStore(): void {
+    this._Unsub.push(
+      this._Store.On('Snapshot', (S) => this._Emitter.Emit('Snapshot', S)),
+      this._Store.On('PhaseChange', (P) => this._Emitter.Emit('PhaseChange', P)),
+      this._Store.On('RoundChange', (R) => this._Emitter.Emit('RoundChange', R)),
+      this._Store.On('Launch', (L) => this._Emitter.Emit('Launch', L)),
+      this._Store.On('Turn', (T) => this._Emitter.Emit('Turn', T)),
+      this._Store.On('Tiebreaker', (Tb) => this._Emitter.Emit('Tiebreaker', Tb)),
+      this._Store.On('CardUsed', (C) => this._Emitter.Emit('CardUsed', C)),
+      this._Store.On('GameOver', (G) => this._Emitter.Emit('GameOver', G)),
+      this._Store.On('DeckShuffled', () => this._Emitter.Emit('DeckShuffled', undefined)),
+    );
+  }
+
+  private _RebuildFromStart(): void {
+    // 解绑旧内部 store 的转发订阅，避免泄漏
+    for (const Unsub of this._Unsub) Unsub();
+    this._Unsub = [];
+
+    this._Store = this._CreateStore();
+    this._BindStore();
 
     for (let I = 0; I < this._CurrentIndex; I++) {
-      this._ApplyEventTo(NewStore, this._Replay.events[I]);
+      this._ApplyEventTo(this._Store, this._Replay.events[I]);
     }
-
-    this._Store = NewStore;
   }
 
   private _ApplyEvent(Event: ReplayEvent): void {
